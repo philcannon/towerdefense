@@ -42,7 +42,8 @@
     <span style="margin-left:20px;">Score: <span id="score">0</span></span>
     <span style="margin-left:20px;">High Score: <span id="highScore">0</span></span>
     <span style="margin-left:20px;">Wave: <span id="wave">0</span></span>
-    <span style="margin-left:20px;">Next Wave In: <span id="waveTimer">20</span>s</span><br>
+    <span style="margin-left:20px;">Next Wave In: <span id="waveTimer">20</span>s</span>
+    <button id="startWaveButton" class="button" style="display:none;" onclick="game.startWaveEarly()">Start Wave</button><br>
     <button class="button" onclick="game.setTowerType('basic')">Place Basic Tower (50G)</button>
     <button class="button" onclick="game.setTowerType('sniper')">Place Sniper Tower (100G)</button>
     <button class="button" onclick="game.setTowerType('slow')">Place Slow Tower (75G)</button>
@@ -93,6 +94,7 @@
         this.cursorY = 0;
         this.cursorGridX = 0;
         this.cursorGridY = 0;
+        this.waveActive = false;
         this.initListeners();
         this.updateUI();
         requestAnimationFrame(this.loop.bind(this));
@@ -113,7 +115,11 @@
 
       generateMap() {
         const map = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(0));
-        for (let p of this.path) map[p.y][p.x] = 1;
+        for (let p of this.path) {
+          if (p.y >= 0 && p.y < MAP_HEIGHT && p.x >= 0 && p.x < MAP_WIDTH) {
+            map[p.y][p.x] = 1;
+          }
+        }
         return map;
       }
 
@@ -130,6 +136,18 @@
         return { basic: 100, sniper: 200, slow: 100 }[type];
       }
 
+      startWaveEarly() {
+        if (!this.waveActive && this.running) {
+          this.wave++;
+          this.gold += 20 + this.wave * 5;
+          this.nextWaveCountdown = 10;
+          this.spawnWave();
+          this.waveActive = true;
+          document.getElementById('startWaveButton').style.display = 'none';
+          this.updateUI();
+        }
+      }
+
       spawnWave() {
         const count = 3 + this.wave * 2;
         let spawned = 0;
@@ -143,6 +161,7 @@
           this.enemies.push(new Enemy(this.path, this.wave, type));
           spawned++;
         }, spawnRate);
+        this.waveActive = true;
       }
 
       updateUI() {
@@ -165,6 +184,8 @@
         } else {
           document.getElementById('towerInfo').style.display = 'none';
         }
+
+        document.getElementById('startWaveButton').style.display = (!this.waveActive && this.wave > 0) ? 'inline-block' : 'none';
       }
 
       initListeners() {
@@ -224,15 +245,28 @@
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Draw connected path
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = '#555';
+        this.ctx.lineWidth = 20;
+        this.ctx.moveTo(this.path[0].x * TILE_SIZE + TILE_SIZE / 2, this.path[0].y * TILE_SIZE + TILE_SIZE / 2);
+        for (let i = 1; i < this.path.length; i++) {
+          this.ctx.lineTo(this.path[i].x * TILE_SIZE + TILE_SIZE / 2, this.path[i].y * TILE_SIZE + TILE_SIZE / 2);
+        }
+        this.ctx.stroke();
+
+        // Draw grid tiles
         for (let y = 0; y < MAP_HEIGHT; y++) {
           for (let x = 0; x < MAP_WIDTH; x++) {
-            this.ctx.fillStyle = this.map[y][x] === 1 ? '#555' : '#333';
-            this.ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            if (this.map[y][x] === 0) {
+              this.ctx.fillStyle = '#333';
+              this.ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
           }
         }
 
         this.towers.forEach(t => {
-          t.update(this.enemies, this.projectiles);
+          t.update(this.ctx, this.enemies, this.projectiles);
           if (t === this.selectedTower) {
             this.ctx.strokeStyle = 'white';
             this.ctx.lineWidth = 2;
@@ -240,7 +274,7 @@
           }
         });
 
-        this.projectiles.forEach(p => p.update());
+        this.projectiles.forEach(p => p.update(this.ctx));
         this.projectiles = this.projectiles.filter(p => !p.dead);
 
         this.enemies = this.enemies.filter(e => {
@@ -261,9 +295,14 @@
             if (this.health <= 0) this.endGame();
             return false;
           }
-          e.update();
+          e.update(this.ctx);
           return true;
         });
+
+        if (!this.enemies.length && this.waveActive) {
+          this.waveActive = false;
+          this.updateUI();
+        }
 
         if (this.placingTower) {
           const x = this.cursorGridX * TILE_SIZE + TILE_SIZE / 2;
@@ -289,11 +328,14 @@
           this.ctx.globalAlpha = 1;
         }
 
-        this.nextWaveCountdown -= delta;
-        if (this.nextWaveCountdown <= 0) {
-          this.wave++;
-          this.nextWaveCountdown = 10;
-          this.spawnWave();
+        if (!this.waveActive) {
+          this.nextWaveCountdown -= delta;
+          if (this.nextWaveCountdown <= 0) {
+            this.wave++;
+            this.gold += 20 + this.wave * 5;
+            this.nextWaveCountdown = 10;
+            this.spawnWave();
+          }
         }
 
         this.updateUI();
@@ -322,7 +364,7 @@
         this.slowTimer = 0;
       }
 
-      update() {
+      update(ctx) {
         if (this.slowed) {
           this.slowTimer--;
           if (this.slowTimer <= 0) {
@@ -341,17 +383,16 @@
           this.x += this.speed * dx / dist;
           this.y += this.speed * dy / dist;
         }
-        this.ctx = document.getElementById('gameCanvas').getContext('2d');
-        this.ctx.fillStyle = this.color;
-        this.ctx.beginPath();
-        this.ctx.arc(this.x + 20, this.y + 20, 15, 0, 2 * Math.PI);
-        this.ctx.fill();
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x + 20, this.y + 20, 15, 0, 2 * Math.PI);
+        ctx.fill();
 
         const healthRatio = this.health / this.maxHealth;
-        this.ctx.fillStyle = 'red';
-        this.ctx.fillRect(this.x + 5, this.y + 10, 30, 5);
-        this.ctx.fillStyle = 'green';
-        this.ctx.fillRect(this.x + 5, this.y + 10, 30 * healthRatio, 5);
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x + 5, this.y + 10, 30, 5);
+        ctx.fillStyle = 'green';
+        ctx.fillRect(this.x + 5, this.y + 10, 30 * healthRatio, 5);
       }
     }
 
@@ -385,7 +426,7 @@
         this.setStats();
       }
 
-      update(enemies, projectiles) {
+      update(ctx, enemies, projectiles) {
         if (this.cooldown-- > 0) return;
         for (let enemy of enemies) {
           const dx = enemy.x - this.x;
@@ -398,11 +439,10 @@
             break;
           }
         }
-        this.ctx = document.getElementById('gameCanvas').getContext('2d');
-        this.ctx.fillStyle = this.color;
-        this.ctx.beginPath();
-        this.ctx.arc(this.x, this.y, 10 + this.level, 0, 2 * Math.PI);
-        this.ctx.fill();
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 10 + this.level, 0, 2 * Math.PI);
+        ctx.fill();
       }
     }
 
@@ -417,7 +457,7 @@
         this.dead = false;
       }
 
-      update() {
+      update(ctx) {
         const dx = this.target.x - this.x;
         const dy = this.target.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -433,11 +473,10 @@
         }
         this.x += this.speed * dx / dist;
         this.y += this.speed * dy / dist;
-        this.ctx = document.getElementById('gameCanvas').getContext('2d');
-        this.ctx.fillStyle = 'yellow';
-        this.ctx.beginPath();
-        this.ctx.arc(this.x, this.y, 4, 0, 2 * Math.PI);
-        this.ctx.fill();
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(this.x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
       }
     }
 
