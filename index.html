@@ -75,8 +75,9 @@
         this.path = this.generatePath();
         this.map = this.generateMap();
         this.running = true;
-        this.waveTimer = 5;
-        this.waveInterval = setInterval(() => this.nextWave(), 5000);
+        this.waveTimer = 10;
+        this.nextWaveCountdown = 10;
+        this.spawnedThisWave = 0;
         this.initListeners();
         this.updateUI();
         this.loop();
@@ -106,17 +107,19 @@
         this.placingTower = true;
       }
 
-      nextWave() {
-        if (!this.running) return;
-        this.wave++;
-        document.getElementById('wave').textContent = this.wave;
+      spawnWave() {
         const count = 5 + this.wave * 2;
-        for (let i = 0; i < count; i++) {
-          setTimeout(() => {
-            const type = i % 5 === 0 ? 'tank' : (i % 3 === 0 ? 'fast' : 'normal');
-            this.enemies.push(new Enemy(this.path, this.wave, type));
-          }, i * 1000);
-        }
+        const spawnRate = 1000; // ms
+        let spawned = 0;
+        const interval = setInterval(() => {
+          if (!this.running || spawned >= count) {
+            clearInterval(interval);
+            return;
+          }
+          const type = spawned % 5 === 0 ? 'tank' : (spawned % 3 === 0 ? 'fast' : 'normal');
+          this.enemies.push(new Enemy(this.path, this.wave, type));
+          spawned++;
+        }, spawnRate);
       }
 
       updateUI() {
@@ -124,6 +127,8 @@
         document.getElementById('health').textContent = this.health;
         document.getElementById('score').textContent = this.score;
         document.getElementById('highScore').textContent = this.highScore;
+        document.getElementById('wave').textContent = this.wave;
+        document.getElementById('waveTimer').textContent = this.nextWaveCountdown;
       }
 
       initListeners() {
@@ -148,12 +153,12 @@
         document.getElementById('finalScore').textContent = this.score;
         document.getElementById('finalHighScore').textContent = this.highScore;
         document.getElementById('gameOver').classList.add('show');
-        clearInterval(this.waveInterval);
         this.running = false;
       }
 
       loop() {
         if (!this.running) return;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -188,9 +193,14 @@
           return true;
         });
 
-        document.getElementById('waveTimer').textContent = (this.waveTimer-- <= 0) ? 5 : this.waveTimer;
-        if (this.waveTimer <= 0) this.waveTimer = 5;
+        this.nextWaveCountdown--;
+        if (this.nextWaveCountdown <= 0) {
+          this.wave++;
+          this.nextWaveCountdown = 10;
+          this.spawnWave();
+        }
 
+        this.updateUI();
         requestAnimationFrame(() => this.loop());
       }
     }
