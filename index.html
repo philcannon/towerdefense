@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tower Defense Game</title>
   <style>
     body { margin: 0; font-family: sans-serif; background: #111; color: #fff; }
@@ -10,6 +10,22 @@
     #ui { text-align: center; margin: 10px; }
     .button { background: #444; color: white; padding: 10px 20px; margin: 5px; cursor: pointer; border: none; }
     .button:hover { background: #666; }
+    #gameOver {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-size: 2em;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 100;
+    }
   </style>
 </head>
 <body>
@@ -17,12 +33,18 @@
     <span>Gold: <span id="gold">100</span></span>
     <span style="margin-left:20px;">Health: <span id="health">10</span></span>
     <span style="margin-left:20px;">Score: <span id="score">0</span></span>
-    <span style="margin-left:20px;">High Score: <span id="highScore">0</span></span><br>
-    <button class="button" onclick="game.startNextWave()">Start Wave</button>
-    <button class="button" onclick="game.setTowerType('basic')">Basic Tower (50G)</button>
-    <button class="button" onclick="game.setTowerType('sniper')">Sniper Tower (100G)</button>
+    <span style="margin-left:20px;">High Score: <span id="highScore">0</span></span>
+    <span style="margin-left:20px;">Wave: <span id="wave">0</span></span>
+    <span style="margin-left:20px;">Next Wave In: <span id="waveTimer">5</span>s</span><br>
+    <button class="button" onclick="game.setTowerType('basic')">Place Basic Tower (50G)</button>
+    <button class="button" onclick="game.setTowerType('sniper')">Place Sniper Tower (100G)</button>
   </div>
-
+  <div id="gameOver">
+    <div>Game Over</div>
+    <div>Your Score: <span id="finalScore"></span></div>
+    <div>High Score: <span id="finalHighScore"></span></div>
+    <button onclick="location.reload()" class="button">Restart Game</button>
+  </div>
   <canvas id="gameCanvas" width="800" height="600"></canvas>
   <audio id="shootSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
   <audio id="hitSound" src="https://www.soundjay.com/button/button-3.mp3"></audio>
@@ -40,49 +62,57 @@
         this.gold = 100;
         this.health = 10;
         this.score = 0;
-        this.highScore = parseInt(localStorage.getItem('td_highscore')) || 0;
         this.wave = 0;
-        this.selectedTowerType = 'basic';
+        this.highScore = parseInt(localStorage.getItem('td_highscore')) || 0;
         this.enemies = [];
         this.towers = [];
         this.projectiles = [];
+        this.selectedTowerType = null;
+        this.placingTower = false;
         this.path = this.generatePath();
         this.map = this.generateMap();
         this.running = true;
-        this.selectedTower = null;
+        this.waveTimer = 5;
+        this.waveInterval = setInterval(() => this.nextWave(), 5000);
         this.initListeners();
         this.updateUI();
         this.loop();
       }
 
       generatePath() {
-        return Array.from({ length: 20 }, (_, i) => ({ x: i, y: 5 }));
+        return [
+          { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 },
+          { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 },
+          { x: 4, y: 6 }, { x: 5, y: 6 }, { x: 6, y: 6 },
+          { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 },
+          { x: 9, y: 4 }, { x: 10, y: 4 }, { x: 11, y: 4 },
+          { x: 12, y: 4 }, { x: 13, y: 4 }, { x: 14, y: 5 },
+          { x: 15, y: 5 }, { x: 16, y: 6 }, { x: 17, y: 6 },
+          { x: 18, y: 5 }, { x: 19, y: 5 }
+        ];
       }
 
       generateMap() {
-        const map = [];
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-          map[y] = [];
-          for (let x = 0; x < MAP_WIDTH; x++) {
-            map[y][x] = 0;
-          }
-        }
+        const map = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(0));
         for (let p of this.path) map[p.y][p.x] = 1;
         return map;
       }
 
       setTowerType(type) {
         this.selectedTowerType = type;
+        this.placingTower = true;
       }
 
-      startNextWave() {
+      nextWave() {
+        if (!this.running) return;
         this.wave++;
+        document.getElementById('wave').textContent = this.wave;
         const count = 5 + this.wave * 2;
         for (let i = 0; i < count; i++) {
           setTimeout(() => {
             const type = i % 5 === 0 ? 'tank' : (i % 3 === 0 ? 'fast' : 'normal');
             this.enemies.push(new Enemy(this.path, this.wave, type));
-          }, i * 800);
+          }, i * 1000);
         }
       }
 
@@ -98,34 +128,31 @@
           const rect = canvas.getBoundingClientRect();
           const x = Math.floor((e.clientX - rect.left) / TILE_SIZE);
           const y = Math.floor((e.clientY - rect.top) / TILE_SIZE);
-          const posX = x * TILE_SIZE;
-          const posY = y * TILE_SIZE;
 
-          const existing = this.towers.find(t => t.gridX === x && t.gridY === y);
-          if (existing) {
-            const upgradeCost = existing.level * 50;
-            if (this.gold >= upgradeCost) {
-              existing.upgrade();
-              this.gold -= upgradeCost;
+          if (this.placingTower && this.map[y][x] === 0 && !this.towers.some(t => t.gridX === x && t.gridY === y)) {
+            const cost = this.selectedTowerType === 'sniper' ? 100 : 50;
+            if (this.gold >= cost) {
+              this.towers.push(new Tower(x * TILE_SIZE, y * TILE_SIZE, this.selectedTowerType, x, y));
+              this.gold -= cost;
               this.updateUI();
+              this.placingTower = false;
             }
-            return;
-          }
-
-          const cost = this.selectedTowerType === 'sniper' ? 100 : 50;
-          if (this.map[y][x] === 0 && this.gold >= cost) {
-            this.towers.push(new Tower(posX, posY, this.selectedTowerType, x, y));
-            this.gold -= cost;
-            this.updateUI();
           }
         });
+      }
+
+      endGame() {
+        document.getElementById('finalScore').textContent = this.score;
+        document.getElementById('finalHighScore').textContent = this.highScore;
+        document.getElementById('gameOver').style.display = 'flex';
+        clearInterval(this.waveInterval);
+        this.running = false;
       }
 
       loop() {
         if (!this.running) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw map
         for (let y = 0; y < MAP_HEIGHT; y++) {
           for (let x = 0; x < MAP_WIDTH; x++) {
             ctx.fillStyle = this.map[y][x] === 1 ? '#555' : '#333';
@@ -133,33 +160,33 @@
           }
         }
 
-        for (let tower of this.towers) tower.update(this.enemies, this.projectiles);
-        for (let proj of this.projectiles) proj.update();
+        this.towers.forEach(t => t.update(this.enemies, this.projectiles));
+        this.projectiles.forEach(p => p.update());
         this.projectiles = this.projectiles.filter(p => !p.dead);
         this.enemies = this.enemies.filter(e => {
           if (e.health <= 0) {
-            this.score += 10;
             this.gold += 10;
+            this.score += 10;
             document.getElementById('hitSound').play();
-            this.updateUI();
             if (this.score > this.highScore) {
               this.highScore = this.score;
               localStorage.setItem('td_highscore', this.highScore);
             }
+            this.updateUI();
             return false;
           }
           if (e.finished) {
             this.health--;
             this.updateUI();
-            if (this.health <= 0) {
-              alert('Game Over! Refresh to play again.');
-              this.running = false;
-            }
+            if (this.health <= 0) this.endGame();
             return false;
           }
           e.update();
           return true;
         });
+
+        document.getElementById('waveTimer').textContent = (this.waveTimer-- <= 0) ? 5 : this.waveTimer;
+        if (this.waveTimer <= 0) this.waveTimer = 5;
 
         requestAnimationFrame(() => this.loop());
       }
@@ -171,7 +198,6 @@
         this.index = 0;
         this.x = path[0].x * TILE_SIZE;
         this.y = path[0].y * TILE_SIZE;
-        this.type = type;
         const stats = {
           normal: { speed: 1, health: 30 },
           fast: { speed: 2, health: 20 },
@@ -180,25 +206,21 @@
         this.speed = stats.speed + wave * 0.1;
         this.health = stats.health + wave * 5;
         this.finished = false;
+        this.color = { normal: '#f44', fast: '#0ff', tank: '#880' }[type];
       }
 
       update() {
         const next = this.path[this.index + 1];
-        if (!next) {
-          this.finished = true;
-          return;
-        }
-        const tx = next.x * TILE_SIZE;
-        const ty = next.y * TILE_SIZE;
-        const dx = tx - this.x;
-        const dy = ty - this.y;
+        if (!next) return this.finished = true;
+        const dx = next.x * TILE_SIZE - this.x;
+        const dy = next.y * TILE_SIZE - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < this.speed) this.index++;
         else {
           this.x += this.speed * dx / dist;
           this.y += this.speed * dy / dist;
         }
-        ctx.fillStyle = this.type === 'tank' ? '#880' : this.type === 'fast' ? '#0ff' : '#f44';
+        ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x + 20, this.y + 20, 15, 0, 2 * Math.PI);
         ctx.fill();
@@ -213,8 +235,8 @@
         this.gridY = gridY;
         this.type = type;
         this.level = 1;
-        this.setStats();
         this.cooldown = 0;
+        this.setStats();
       }
 
       setStats() {
@@ -234,10 +256,7 @@
       }
 
       update(enemies, projectiles) {
-        if (this.cooldown > 0) {
-          this.cooldown--;
-          return;
-        }
+        if (this.cooldown-- > 0) return;
         for (let enemy of enemies) {
           const dx = enemy.x - this.x;
           const dy = enemy.y - this.y;
