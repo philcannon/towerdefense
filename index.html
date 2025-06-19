@@ -11,7 +11,7 @@
     .button { background: #444; color: white; padding: 10px 20px; margin: 5px; cursor: pointer; border: none; }
     .button:hover { background: #666; }
     #gameOver {
-      display: none;
+      visibility: hidden;
       position: fixed;
       top: 0;
       left: 0;
@@ -25,6 +25,9 @@
       align-items: center;
       flex-direction: column;
       z-index: 100;
+    }
+    #gameOver.show {
+      visibility: visible;
     }
   </style>
 </head>
@@ -144,7 +147,7 @@
       endGame() {
         document.getElementById('finalScore').textContent = this.score;
         document.getElementById('finalHighScore').textContent = this.highScore;
-        document.getElementById('gameOver').style.display = 'flex';
+        document.getElementById('gameOver').classList.add('show');
         clearInterval(this.waveInterval);
         this.running = false;
       }
