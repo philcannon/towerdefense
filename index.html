@@ -138,14 +138,18 @@
 
       startWaveEarly() {
         if (!this.waveActive && this.running) {
-          this.wave++;
-          this.gold += 20 + this.wave * 5;
-          this.nextWaveCountdown = 10;
-          this.spawnWave();
-          this.waveActive = true;
-          document.getElementById('startWaveButton').style.display = 'none';
-          this.updateUI();
+          this.startNewWave();
         }
+      }
+
+      startNewWave() {
+        this.wave++;
+        this.gold += 20 + this.wave * 5;
+        this.nextWaveCountdown = 10;
+        this.spawnWave();
+        this.waveActive = true;
+        document.getElementById('startWaveButton').style.display = 'none';
+        this.updateUI();
       }
 
       spawnWave() {
@@ -161,7 +165,6 @@
           this.enemies.push(new Enemy(this.path, this.wave, type));
           spawned++;
         }, spawnRate);
-        this.waveActive = true;
       }
 
       updateUI() {
@@ -304,37 +307,10 @@
           this.updateUI();
         }
 
-        if (this.placingTower) {
-          const x = this.cursorGridX * TILE_SIZE + TILE_SIZE / 2;
-          const y = this.cursorGridY * TILE_SIZE + TILE_SIZE / 2;
-          const range = this.getTowerBaseRange(this.selectedTowerType);
-          const canPlace = this.map[this.cursorGridY][this.cursorGridX] === 0 && !this.towers.some(t => t.gridX === this.cursorGridX && t.gridY === this.cursorGridY);
-          this.ctx.beginPath();
-          this.ctx.arc(x, y, range, 0, 2 * Math.PI);
-          this.ctx.strokeStyle = canPlace ? 'white' : 'red';
-          this.ctx.lineWidth = 1;
-          this.ctx.globalAlpha = 0.5;
-          this.ctx.stroke();
-          this.ctx.globalAlpha = 1;
-        }
-
-        if (this.selectedTower) {
-          this.ctx.beginPath();
-          this.ctx.arc(this.selectedTower.x, this.selectedTower.y, this.selectedTower.range, 0, 2 * Math.PI);
-          this.ctx.strokeStyle = 'white';
-          this.ctx.lineWidth = 1;
-          this.ctx.globalAlpha = 0.5;
-          this.ctx.stroke();
-          this.ctx.globalAlpha = 1;
-        }
-
         if (!this.waveActive) {
           this.nextWaveCountdown -= delta;
-          if (this.nextWaveCountdown <= 0) {
-            this.wave++;
-            this.gold += 20 + this.wave * 5;
-            this.nextWaveCountdown = 10;
-            this.spawnWave();
+          if (this.nextWaveCountdown <= 0 && this.running) {
+            this.startNewWave();
           }
         }
 
@@ -475,7 +451,7 @@
         this.y += this.speed * dy / dist;
         ctx.fillStyle = 'yellow';
         ctx.beginPath();
-        ctx.arc(this.x, y, 4, 0, 2 * Math.PI);
+        ctx.arc(this.x, this.y, 4, 0, 2 * Math.PI);
         ctx.fill();
       }
     }
