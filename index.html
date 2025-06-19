@@ -29,6 +29,10 @@
     #gameOver.show {
       visibility: visible;
     }
+    #towerInfo {
+      margin-top: 10px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -38,9 +42,17 @@
     <span style="margin-left:20px;">Score: <span id="score">0</span></span>
     <span style="margin-left:20px;">High Score: <span id="highScore">0</span></span>
     <span style="margin-left:20px;">Wave: <span id="wave">0</span></span>
-    <span style="margin-left:20px;">Next Wave In: <span id="waveTimer">5</span>s</span><br>
+    <span style="margin-left:20px;">Next Wave In: <span id="waveTimer">20</span>s</span><br>
     <button class="button" onclick="game.setTowerType('basic')">Place Basic Tower (50G)</button>
     <button class="button" onclick="game.setTowerType('sniper')">Place Sniper Tower (100G)</button>
+    <button class="button" onclick="game.setTowerType('slow')">Place Slow Tower (75G)</button>
+  </div>
+  <div id="towerInfo" style="display:none;">
+    Selected Tower: <span id="towerType"></span><br>
+    Level: <span id="towerLevel"></span><br>
+    Damage: <span id="towerDamage"></span><br>
+    Range: <span id="towerRange"></span><br>
+    <button id="upgradeButton" class="button">Upgrade (<span id="upgradeCost"></span>G)</button>
   </div>
   <div id="gameOver">
     <div>Game Over</div>
@@ -53,15 +65,14 @@
   <audio id="hitSound" src="https://www.soundjay.com/button/button-3.mp3"></audio>
 
   <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-
     const TILE_SIZE = 40;
-    const MAP_WIDTH = canvas.width / TILE_SIZE;
-    const MAP_HEIGHT = canvas.height / TILE_SIZE;
+    const MAP_WIDTH = 20;
+    const MAP_HEIGHT = 15;
 
     class Game {
       constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
         this.gold = 100;
         this.health = 10;
         this.score = 0;
@@ -72,15 +83,19 @@
         this.projectiles = [];
         this.selectedTowerType = null;
         this.placingTower = false;
+        this.selectedTower = null;
         this.path = this.generatePath();
         this.map = this.generateMap();
         this.running = true;
-        this.waveTimer = 10;
-        this.nextWaveCountdown = 10;
-        this.spawnedThisWave = 0;
+        this.nextWaveCountdown = 20;
+        this.lastTime = null;
+        this.cursorX = 0;
+        this.cursorY = 0;
+        this.cursorGridX = 0;
+        this.cursorGridY = 0;
         this.initListeners();
         this.updateUI();
-        this.loop();
+        requestAnimationFrame(this.loop.bind(this));
       }
 
       generatePath() {
@@ -107,10 +122,18 @@
         this.placingTower = true;
       }
 
+      getTowerCost(type) {
+        return { basic: 50, sniper: 100, slow: 75 }[type];
+      }
+
+      getTowerBaseRange(type) {
+        return { basic: 100, sniper: 200, slow: 100 }[type];
+      }
+
       spawnWave() {
-        const count = 5 + this.wave * 2;
-        const spawnRate = 1000; // ms
+        const count = 3 + this.wave * 2;
         let spawned = 0;
+        const spawnRate = 1000;
         const interval = setInterval(() => {
           if (!this.running || spawned >= count) {
             clearInterval(interval);
@@ -128,22 +151,58 @@
         document.getElementById('score').textContent = this.score;
         document.getElementById('highScore').textContent = this.highScore;
         document.getElementById('wave').textContent = this.wave;
-        document.getElementById('waveTimer').textContent = this.nextWaveCountdown;
+        document.getElementById('waveTimer').textContent = Math.ceil(this.nextWaveCountdown);
+
+        if (this.selectedTower) {
+          document.getElementById('towerInfo').style.display = 'block';
+          document.getElementById('towerType').textContent = this.selectedTower.type;
+          document.getElementById('towerLevel').textContent = this.selectedTower.level;
+          document.getElementById('towerDamage').textContent = this.selectedTower.damage;
+          document.getElementById('towerRange').textContent = this.selectedTower.range;
+          const upgradeCost = 50 * this.selectedTower.level;
+          document.getElementById('upgradeCost').textContent = upgradeCost;
+          document.getElementById('upgradeButton').disabled = this.gold < upgradeCost;
+        } else {
+          document.getElementById('towerInfo').style.display = 'none';
+        }
       }
 
       initListeners() {
-        canvas.addEventListener('click', (e) => {
-          const rect = canvas.getBoundingClientRect();
+        this.canvas.addEventListener('click', (e) => {
+          const rect = this.canvas.getBoundingClientRect();
           const x = Math.floor((e.clientX - rect.left) / TILE_SIZE);
           const y = Math.floor((e.clientY - rect.top) / TILE_SIZE);
 
-          if (this.placingTower && this.map[y][x] === 0 && !this.towers.some(t => t.gridX === x && t.gridY === y)) {
-            const cost = this.selectedTowerType === 'sniper' ? 100 : 50;
-            if (this.gold >= cost) {
+          if (this.placingTower) {
+            const cost = this.getTowerCost(this.selectedTowerType);
+            if (this.map[y][x] === 0 && !this.towers.some(t => t.gridX === x && t.gridY === y) && this.gold >= cost) {
               this.towers.push(new Tower(x * TILE_SIZE, y * TILE_SIZE, this.selectedTowerType, x, y));
               this.gold -= cost;
               this.updateUI();
               this.placingTower = false;
+            }
+          } else {
+            const tower = this.towers.find(t => t.gridX === x && t.gridY === y);
+            this.selectedTower = tower || null;
+            this.updateUI();
+          }
+        });
+
+        this.canvas.addEventListener('mousemove', (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          this.cursorX = e.clientX - rect.left;
+          this.cursorY = e.clientY - rect.top;
+          this.cursorGridX = Math.floor(this.cursorX / TILE_SIZE);
+          this.cursorGridY = Math.floor(this.cursorY / TILE_SIZE);
+        });
+
+        document.getElementById('upgradeButton').addEventListener('click', () => {
+          if (this.selectedTower) {
+            const cost = 50 * this.selectedTower.level;
+            if (this.gold >= cost) {
+              this.gold -= cost;
+              this.selectedTower.upgrade();
+              this.updateUI();
             }
           }
         });
@@ -156,21 +215,34 @@
         this.running = false;
       }
 
-      loop() {
+      loop(timestamp) {
         if (!this.running) return;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!this.lastTime) this.lastTime = timestamp;
+        const delta = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         for (let y = 0; y < MAP_HEIGHT; y++) {
           for (let x = 0; x < MAP_WIDTH; x++) {
-            ctx.fillStyle = this.map[y][x] === 1 ? '#555' : '#333';
-            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            this.ctx.fillStyle = this.map[y][x] === 1 ? '#555' : '#333';
+            this.ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
           }
         }
 
-        this.towers.forEach(t => t.update(this.enemies, this.projectiles));
+        this.towers.forEach(t => {
+          t.update(this.enemies, this.projectiles);
+          if (t === this.selectedTower) {
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(t.gridX * TILE_SIZE, t.gridY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          }
+        });
+
         this.projectiles.forEach(p => p.update());
         this.projectiles = this.projectiles.filter(p => !p.dead);
+
         this.enemies = this.enemies.filter(e => {
           if (e.health <= 0) {
             this.gold += 10;
@@ -193,7 +265,31 @@
           return true;
         });
 
-        this.nextWaveCountdown--;
+        if (this.placingTower) {
+          const x = this.cursorGridX * TILE_SIZE + TILE_SIZE / 2;
+          const y = this.cursorGridY * TILE_SIZE + TILE_SIZE / 2;
+          const range = this.getTowerBaseRange(this.selectedTowerType);
+          const canPlace = this.map[this.cursorGridY][this.cursorGridX] === 0 && !this.towers.some(t => t.gridX === this.cursorGridX && t.gridY === this.cursorGridY);
+          this.ctx.beginPath();
+          this.ctx.arc(x, y, range, 0, 2 * Math.PI);
+          this.ctx.strokeStyle = canPlace ? 'white' : 'red';
+          this.ctx.lineWidth = 1;
+          this.ctx.globalAlpha = 0.5;
+          this.ctx.stroke();
+          this.ctx.globalAlpha = 1;
+        }
+
+        if (this.selectedTower) {
+          this.ctx.beginPath();
+          this.ctx.arc(this.selectedTower.x, this.selectedTower.y, this.selectedTower.range, 0, 2 * Math.PI);
+          this.ctx.strokeStyle = 'white';
+          this.ctx.lineWidth = 1;
+          this.ctx.globalAlpha = 0.5;
+          this.ctx.stroke();
+          this.ctx.globalAlpha = 1;
+        }
+
+        this.nextWaveCountdown -= delta;
         if (this.nextWaveCountdown <= 0) {
           this.wave++;
           this.nextWaveCountdown = 10;
@@ -201,7 +297,7 @@
         }
 
         this.updateUI();
-        requestAnimationFrame(() => this.loop());
+        requestAnimationFrame(this.loop.bind(this));
       }
     }
 
@@ -216,13 +312,25 @@
           fast: { speed: 2, health: 20 },
           tank: { speed: 0.5, health: 100 }
         }[type];
-        this.speed = stats.speed + wave * 0.1;
-        this.health = stats.health + wave * 5;
+        this.baseSpeed = stats.speed + wave * 0.1;
+        this.speed = this.baseSpeed;
+        this.maxHealth = stats.health + wave * 5;
+        this.health = this.maxHealth;
         this.finished = false;
         this.color = { normal: '#f44', fast: '#0ff', tank: '#880' }[type];
+        this.slowed = false;
+        this.slowTimer = 0;
       }
 
       update() {
+        if (this.slowed) {
+          this.slowTimer--;
+          if (this.slowTimer <= 0) {
+            this.slowed = false;
+            this.speed = this.baseSpeed;
+          }
+        }
+
         const next = this.path[this.index + 1];
         if (!next) return this.finished = true;
         const dx = next.x * TILE_SIZE - this.x;
@@ -233,10 +341,17 @@
           this.x += this.speed * dx / dist;
           this.y += this.speed * dy / dist;
         }
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x + 20, this.y + 20, 15, 0, 2 * Math.PI);
-        ctx.fill();
+        this.ctx = document.getElementById('gameCanvas').getContext('2d');
+        this.ctx.fillStyle = this.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.x + 20, this.y + 20, 15, 0, 2 * Math.PI);
+        this.ctx.fill();
+
+        const healthRatio = this.health / this.maxHealth;
+        this.ctx.fillStyle = 'red';
+        this.ctx.fillRect(this.x + 5, this.y + 10, 30, 5);
+        this.ctx.fillStyle = 'green';
+        this.ctx.fillRect(this.x + 5, this.y + 10, 30 * healthRatio, 5);
       }
     }
 
@@ -254,12 +369,14 @@
 
       setStats() {
         const base = {
-          basic: { range: 100, rate: 60, damage: 10, color: 'blue' },
-          sniper: { range: 200, rate: 100, damage: 25, color: 'cyan' }
+          basic: { range: 100, rate: 60, damage: 10, slowDuration: 0, color: 'blue' },
+          sniper: { range: 200, rate: 100, damage: 25, slowDuration: 0, color: 'cyan' },
+          slow: { range: 100, rate: 60, damage: 5, slowDuration: 120, color: 'green' }
         }[this.type];
         this.range = base.range + this.level * 10;
         this.fireRate = base.rate - this.level * 5;
         this.damage = base.damage + this.level * 5;
+        this.slowDuration = base.slowDuration;
         this.color = base.color;
       }
 
@@ -275,25 +392,27 @@
           const dy = enemy.y - this.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < this.range) {
-            projectiles.push(new Projectile(this.x, this.y, enemy, this.damage));
+            projectiles.push(new Projectile(this.x, this.y, enemy, this.damage, this.slowDuration));
             document.getElementById('shootSound').play();
             this.cooldown = this.fireRate;
             break;
           }
         }
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 10 + this.level, 0, 2 * Math.PI);
-        ctx.fill();
+        this.ctx = document.getElementById('gameCanvas').getContext('2d');
+        this.ctx.fillStyle = this.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.x, this.y, 10 + this.level, 0, 2 * Math.PI);
+        this.ctx.fill();
       }
     }
 
     class Projectile {
-      constructor(x, y, target, damage) {
+      constructor(x, y, target, damage, slowDuration = 0) {
         this.x = x;
         this.y = y;
         this.target = target;
         this.damage = damage;
+        this.slowDuration = slowDuration;
         this.speed = 6;
         this.dead = false;
       }
@@ -304,15 +423,21 @@
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < this.speed) {
           this.target.health -= this.damage;
+          if (this.slowDuration > 0) {
+            this.target.slowed = true;
+            this.target.slowTimer = this.slowDuration;
+            this.target.speed = this.target.baseSpeed * 0.5;
+          }
           this.dead = true;
           return;
         }
         this.x += this.speed * dx / dist;
         this.y += this.speed * dy / dist;
-        ctx.fillStyle = 'yellow';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 4, 0, 2 * Math.PI);
-        ctx.fill();
+        this.ctx = document.getElementById('gameCanvas').getContext('2d');
+        this.ctx.fillStyle = 'yellow';
+        this.ctx.beginPath();
+        this.ctx.arc(this.x, this.y, 4, 0, 2 * Math.PI);
+        this.ctx.fill();
       }
     }
 
