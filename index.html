@@ -9,6 +9,8 @@
       margin: 0; padding: 0; overflow: hidden;
       background: #000;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100%;
+      width: 100%;
     }
     canvas {
       display: block;
@@ -25,18 +27,20 @@ class HomeScene extends Phaser.Scene {
   }
 
   create() {
-    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x0c0c0c).setOrigin(0);
-    this.add.text(this.scale.width / 2, 120, '⚔️ Tower Defense', { fontSize: '64px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 200, `💰 Tokens: ${playerTokens}`, { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
+    const w = this.sys.game.config.width;
+    const h = this.sys.game.config.height;
+    this.add.rectangle(0, 0, w * 2, h * 2, 0x0c0c0c).setOrigin(0);
+    this.add.text(w / 2, 120, '⚔️ Tower Defense', { fontSize: '64px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
+    this.add.text(w / 2, 200, `💰 Tokens: ${playerTokens}`, { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
 
-    const playButton = this.add.text(this.scale.width / 2, 300, '▶️ Start Game', {
+    const playButton = this.add.text(w / 2, 300, '▶️ Start Game', {
       fontSize: '36px', fill: '#00ffcc', backgroundColor: '#222', padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setInteractive();
     playButton.on('pointerover', () => playButton.setStyle({ backgroundColor: '#444' }));
     playButton.on('pointerout', () => playButton.setStyle({ backgroundColor: '#222' }));
     playButton.on('pointerdown', () => this.scene.start('TowerDefenseScene'));
 
-    const shopButton = this.add.text(this.scale.width / 2, 380, '🛒 Shop', {
+    const shopButton = this.add.text(w / 2, 380, '🛒 Shop', {
       fontSize: '30px', fill: '#ffffff', backgroundColor: '#333', padding: { x: 16, y: 8 }
     }).setOrigin(0.5).setInteractive();
     shopButton.on('pointerover', () => shopButton.setStyle({ backgroundColor: '#555' }));
@@ -51,28 +55,31 @@ class GameOverScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.score = data.score;
-    this.highScore = data.highScore;
+    this.score = data.score || 0;
+    this.highScore = data.highScore || 0;
     this.tokensEarned = Math.floor(this.score / 50);
     playerTokens += this.tokensEarned;
     localStorage.setItem('tokens', playerTokens);
   }
 
   create() {
-    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x1a1a1a).setOrigin(0);
-    this.add.text(this.scale.width / 2, 120, '💀 Game Over', { fontSize: '48px', fill: '#ff4c4c' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 190, `🏆 Score: ${this.score}`, { fontSize: '26px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 230, `🥇 High Score: ${this.highScore}`, { fontSize: '26px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 270, `🎁 Tokens Earned: ${this.tokensEarned}`, { fontSize: '26px', fill: '#00ffcc' }).setOrigin(0.5);
+    const w = this.sys.game.config.width;
+    const h = this.sys.game.config.height;
 
-    const retryBtn = this.add.text(this.scale.width / 2, 340, '🔁 Play Again', {
+    this.add.rectangle(0, 0, w * 2, h * 2, 0x1a1a1a).setOrigin(0);
+    this.add.text(w / 2, 120, '💀 Game Over', { fontSize: '48px', fill: '#ff4c4c' }).setOrigin(0.5);
+    this.add.text(w / 2, 190, `🏆 Score: ${this.score}`, { fontSize: '26px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.text(w / 2, 230, `🥇 High Score: ${this.highScore}`, { fontSize: '26px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.text(w / 2, 270, `🎁 Tokens Earned: ${this.tokensEarned}`, { fontSize: '26px', fill: '#00ffcc' }).setOrigin(0.5);
+
+    const retryBtn = this.add.text(w / 2, 340, '🔁 Play Again', {
       fontSize: '28px', fill: '#ffffff', backgroundColor: '#444', padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setInteractive();
     retryBtn.on('pointerover', () => retryBtn.setStyle({ backgroundColor: '#666' }));
     retryBtn.on('pointerout', () => retryBtn.setStyle({ backgroundColor: '#444' }));
     retryBtn.on('pointerdown', () => this.scene.start('TowerDefenseScene'));
 
-    const shopBtn = this.add.text(this.scale.width / 2, 410, '🛒 Go to Shop', {
+    const shopBtn = this.add.text(w / 2, 410, '🛒 Go to Shop', {
       fontSize: '24px', fill: '#00ffcc', backgroundColor: '#222', padding: { x: 16, y: 8 }
     }).setOrigin(0.5).setInteractive();
     shopBtn.on('pointerover', () => shopBtn.setStyle({ backgroundColor: '#444' }));
@@ -87,12 +94,15 @@ class ShopScene extends Phaser.Scene {
   }
 
   create() {
-    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x001f33).setOrigin(0);
-    this.add.text(this.scale.width / 2, 70, '🛒 Upgrade Shop', {
+    const w = this.sys.game.config.width;
+    const h = this.sys.game.config.height;
+
+    this.add.rectangle(0, 0, w * 2, h * 2, 0x001f33).setOrigin(0);
+    this.add.text(w / 2, 70, '🛒 Upgrade Shop', {
       fontSize: '40px', fill: '#ffffff'
     }).setOrigin(0.5);
 
-    this.tokenDisplay = this.add.text(this.scale.width / 2, 130, `💰 Tokens: ${playerTokens}`, {
+    this.tokenDisplay = this.add.text(w / 2, 130, `💰 Tokens: ${playerTokens}`, {
       fontSize: '24px', fill: '#00ffcc'
     }).setOrigin(0.5);
 
@@ -104,8 +114,8 @@ class ShopScene extends Phaser.Scene {
 
     upgrades.forEach((upgrade, i) => {
       const y = 200 + i * 80;
-      const button = this.add.rectangle(this.scale.width / 2, y, 300, 50, 0x114466).setOrigin(0.5).setInteractive();
-      const label = this.add.text(this.scale.width / 2, y, `${upgrade.name} - ${upgrade.cost} tokens`, {
+      const button = this.add.rectangle(w / 2, y, 300, 50, 0x114466).setOrigin(0.5).setInteractive();
+      const label = this.add.text(w / 2, y, `${upgrade.name} - ${upgrade.cost} tokens`, {
         fontSize: '20px', fill: '#ffffff'
       }).setOrigin(0.5);
 
@@ -123,7 +133,7 @@ class ShopScene extends Phaser.Scene {
       });
     });
 
-    const backBtn = this.add.text(this.scale.width / 2, this.scale.height - 80, '⬅️ Back to Home', {
+    const backBtn = this.add.text(w / 2, h - 80, '⬅️ Back to Home', {
       fontSize: '24px', fill: '#ffffff', backgroundColor: '#444', padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setInteractive();
     backBtn.on('pointerover', () => backBtn.setStyle({ backgroundColor: '#666' }));
@@ -144,6 +154,10 @@ class TowerDefenseScene extends Phaser.Scene {
   }
 
   create() {
+    const w = this.sys.game.config.width;
+    const h = this.sys.game.config.height;
+    console.log('TowerDefenseScene started', w, h);
+
     // Set camera background color explicitly
     this.cameras.main.setBackgroundColor('#1a1a1a');
 
@@ -177,7 +191,7 @@ class TowerDefenseScene extends Phaser.Scene {
 
     // Enable placing towers on click, but only above the HUD
     this.input.on('pointerdown', pointer => {
-      if (pointer.y > this.scale.height - 70) return; // avoid placing on HUD
+      if (pointer.y > h - 70) return; // avoid placing on HUD
       const towerData = this.towerData[this.selectedTowerIndex];
       if (this.tokens >= towerData.cost) {
         this.placeTower(pointer.x, pointer.y, towerData);
@@ -206,24 +220,57 @@ class TowerDefenseScene extends Phaser.Scene {
         this.updateWaveProgress(this.waveProgress);
       }
     });
+
+    // Resize handling
+    window.addEventListener('resize', () => {
+      this.scale.resize(window.innerWidth, window.innerHeight);
+      this.cameras.resize(window.innerWidth, window.innerHeight);
+      this.redrawUI();
+    });
+  }
+
+  redrawUI() {
+    // Redraw path and reposition HUD on resize
+    this.drawPath();
+    this.hudBg.setSize(this.sys.game.config.width, 70);
+    this.towerPanelBg.setPosition(0, this.sys.game.config.height - 70);
+    this.towerPanelBg.setSize(this.sys.game.config.width, 70);
+    this.waveText.setPosition(this.sys.game.config.width / 2, 20);
+    this.waveBarBg.setPosition(this.sys.game.config.width / 2 - 100, 50);
+    this.waveBar.setPosition(this.sys.game.config.width / 2 - 100, 50);
+    this.tokenText.setPosition(240, 20);
+    this.towerIcons.forEach((icon, i) => {
+      const gap = 120;
+      const x = 20 + i * gap;
+      icon.setPosition(x, this.sys.game.config.height - 35);
+    });
   }
 
   drawPath() {
     if(this.pathGraphics) this.pathGraphics.clear();
+    else this.pathGraphics = this.add.graphics();
 
-    this.pathGraphics = this.add.graphics();
     this.pathGraphics.lineStyle(8, 0xffff00);
+
+    const w = this.sys.game.config.width;
+    const h = this.sys.game.config.height;
 
     // Draw a bright visible curve
     this.pathGraphics.beginPath();
-    this.pathGraphics.moveTo(50, this.scale.height - 150);
-    this.pathGraphics.bezierCurveTo(this.scale.width / 2, this.scale.height - 300, this.scale.width / 2, 100, this.scale.width - 50, 150);
+    this.pathGraphics.moveTo(50, h - 150);
+    this.pathGraphics.bezierCurveTo(w / 2, h - 300, w / 2, 100, w - 50, 150);
     this.pathGraphics.strokePath();
   }
 
   createTestEnemy() {
+    const w = this.sys.game.config.width;
+    const h = this.sys.game.config.height;
+
+    // Remove old enemy if exists
+    if (this.enemy) this.enemy.destroy();
+
     // Create a simple circle to move along the path visually
-    this.enemy = this.add.circle(50, this.scale.height - 150, 12, 0xff4444);
+    this.enemy = this.add.circle(50, h - 150, 12, 0xff4444);
 
     this.tweenPathProgress = { t: 0 };
 
@@ -237,10 +284,10 @@ class TowerDefenseScene extends Phaser.Scene {
         const t = this.tweenPathProgress.t;
 
         // Calculate position along bezier curve
-        const p0 = new Phaser.Math.Vector2(50, this.scale.height - 150);
-        const p1 = new Phaser.Math.Vector2(this.scale.width / 2, this.scale.height - 300);
-        const p2 = new Phaser.Math.Vector2(this.scale.width / 2, 100);
-        const p3 = new Phaser.Math.Vector2(this.scale.width - 50, 150);
+        const p0 = new Phaser.Math.Vector2(50, h - 150);
+        const p1 = new Phaser.Math.Vector2(w / 2, h - 300);
+        const p2 = new Phaser.Math.Vector2(w / 2, 100);
+        const p3 = new Phaser.Math.Vector2(w - 50, 150);
 
         const x = Phaser.Math.Interpolation.Bezier([p0.x, p1.x, p2.x, p3.x], t);
         const y = Phaser.Math.Interpolation.Bezier([p0.y, p1.y, p2.y, p3.y], t);
@@ -251,8 +298,11 @@ class TowerDefenseScene extends Phaser.Scene {
   }
 
   createHUD() {
+    const w = this.sys.game.config.width;
+    const h = this.sys.game.config.height;
+
     // HUD background
-    this.hudBg = this.add.rectangle(0, 0, this.scale.width, 70, 0x222222, 0.85).setOrigin(0);
+    this.hudBg = this.add.rectangle(0, 0, w, 70, 0x222222, 0.85).setOrigin(0);
 
     // Health bar background
     this.healthBarBg = this.add.rectangle(20, 20, 200, 20, 0x660000).setOrigin(0, 0.5);
@@ -263,26 +313,28 @@ class TowerDefenseScene extends Phaser.Scene {
     this.tokenText = this.add.text(240, 20, `💰 Tokens: ${this.tokens}`, { fontSize: '20px', fill: '#00ffcc' });
 
     // Wave text
-    this.waveText = this.add.text(this.scale.width / 2, 20, `Wave: ${this.currentWave}`, { fontSize: '22px', fill: '#ffffff' }).setOrigin(0.5, 0.5);
+    this.waveText = this.add.text(w / 2, 20, `Wave: ${this.currentWave}`, { fontSize: '22px', fill: '#ffffff' }).setOrigin(0.5, 0.5);
 
     // Wave progress bar background
-    this.waveBarBg = this.add.rectangle(this.scale.width / 2 - 100, 50, 200, 12, 0x444444).setOrigin(0, 0.5);
+    this.waveBarBg = this.add.rectangle(w / 2 - 100, 50, 200, 12, 0x444444).setOrigin(0, 0.5);
     // Wave progress bar foreground
-    this.waveBar = this.add.rectangle(this.scale.width / 2 - 100, 50, 0, 12, 0x00ff00).setOrigin(0, 0.5);
+    this.waveBar = this.add.rectangle(w / 2 - 100, 50, 0, 12, 0x00ff00).setOrigin(0, 0.5);
 
     // Tower selection panel background
-    this.towerPanelBg = this.add.rectangle(0, this.scale.height - 70, this.scale.width, 70, 0x111111, 0.9).setOrigin(0);
+    this.towerPanelBg = this.add.rectangle(0, h - 70, w, 70, 0x111111, 0.9).setOrigin(0);
   }
 
   createTowerSelectionPanel() {
+    const h = this.sys.game.config.height;
+
     this.towerIcons = [];
     const startX = 20;
     const gap = 120;
     this.towerData.forEach((tower, i) => {
       let x = startX + i * gap;
-      let icon = this.add.rectangle(x, this.scale.height - 35, 80, 50, tower.color).setOrigin(0, 0.5).setInteractive();
-      let costText = this.add.text(x + 40, this.scale.height - 35, `💰${tower.cost}`, { fontSize: '18px', fill: '#ffffff' }).setOrigin(0.5);
-      let nameText = this.add.text(x + 40, this.scale.height - 55, tower.name, { fontSize: '16px', fill: '#ccc' }).setOrigin(0.5);
+      let icon = this.add.rectangle(x, h - 35, 80, 50, tower.color).setOrigin(0, 0.5).setInteractive();
+      let costText = this.add.text(x + 40, h - 35, `💰${tower.cost}`, { fontSize: '18px', fill: '#ffffff' }).setOrigin(0.5);
+      let nameText = this.add.text(x + 40, h - 55, tower.name, { fontSize: '16px', fill: '#ccc' }).setOrigin(0.5);
       icon.on('pointerdown', () => this.selectTower(i));
       icon.on('pointerover', () => icon.setStrokeStyle(2, 0xffff00));
       icon.on('pointerout', () => {
@@ -342,14 +394,21 @@ class TowerDefenseScene extends Phaser.Scene {
   }
 }
 
-const config = {
-  type: Phaser.AUTO,
-  width: window.innerWidth,
-  height: window.innerHeight,
-  scene: [HomeScene, TowerDefenseScene, GameOverScene, ShopScene]
-};
+// Phaser game config with fixed size at window load
+window.onload = () => {
+  const config = {
+    type: Phaser.AUTO,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    scene: [HomeScene, TowerDefenseScene, GameOverScene, ShopScene],
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoCenter: Phaser.Scale.CENTER_BOTH
+    }
+  };
 
-const game = new Phaser.Game(config);
+  window.game = new Phaser.Game(config);
+};
 </script>
 </body>
 </html>
