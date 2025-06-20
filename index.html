@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Phaser Tower Defense</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
+      margin: 0; padding: 0; overflow: hidden;
       background: #000;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     canvas {
       display: block;
@@ -26,113 +25,300 @@ class HomeScene extends Phaser.Scene {
   }
 
   create() {
-    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x000000).setOrigin(0);
-    this.add.text(this.scale.width / 2, 150, '⚔️ Tower Defense', { fontSize: '48px', fill: '#f8e71c', fontStyle: 'bold' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 220, `Tokens: ${playerTokens}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x0c0c0c).setOrigin(0);
+    this.add.text(this.scale.width / 2, 120, '⚔️ Tower Defense', { fontSize: '64px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 200, `💰 Tokens: ${playerTokens}`, { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
 
-    this.add.text(this.scale.width / 2, 300, 'Click to Start Game', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('TowerDefenseScene'));
-    this.add.text(this.scale.width / 2, 360, '🛒 Open Shop', { fontSize: '24px', fill: '#00ffcc' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('ShopScene'));
+    const playButton = this.add.text(this.scale.width / 2, 300, '▶️ Start Game', {
+      fontSize: '36px', fill: '#00ffcc', backgroundColor: '#222', padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setInteractive();
+    playButton.on('pointerover', () => playButton.setStyle({ backgroundColor: '#444' }));
+    playButton.on('pointerout', () => playButton.setStyle({ backgroundColor: '#222' }));
+    playButton.on('pointerdown', () => this.scene.start('TowerDefenseScene'));
+
+    const shopButton = this.add.text(this.scale.width / 2, 380, '🛒 Shop', {
+      fontSize: '30px', fill: '#ffffff', backgroundColor: '#333', padding: { x: 16, y: 8 }
+    }).setOrigin(0.5).setInteractive();
+    shopButton.on('pointerover', () => shopButton.setStyle({ backgroundColor: '#555' }));
+    shopButton.on('pointerout', () => shopButton.setStyle({ backgroundColor: '#333' }));
+    shopButton.on('pointerdown', () => this.scene.start('ShopScene'));
   }
 }
 
-// ... [GameOverScene and ShopScene unchanged] ...
+class GameOverScene extends Phaser.Scene {
+  constructor() {
+    super('GameOverScene');
+  }
+
+  init(data) {
+    this.score = data.score;
+    this.highScore = data.highScore;
+    this.tokensEarned = Math.floor(this.score / 50);
+    playerTokens += this.tokensEarned;
+    localStorage.setItem('tokens', playerTokens);
+  }
+
+  create() {
+    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x1a1a1a).setOrigin(0);
+    this.add.text(this.scale.width / 2, 120, '💀 Game Over', { fontSize: '48px', fill: '#ff4c4c' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 190, `🏆 Score: ${this.score}`, { fontSize: '26px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 230, `🥇 High Score: ${this.highScore}`, { fontSize: '26px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 270, `🎁 Tokens Earned: ${this.tokensEarned}`, { fontSize: '26px', fill: '#00ffcc' }).setOrigin(0.5);
+
+    const retryBtn = this.add.text(this.scale.width / 2, 340, '🔁 Play Again', {
+      fontSize: '28px', fill: '#ffffff', backgroundColor: '#444', padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setInteractive();
+    retryBtn.on('pointerover', () => retryBtn.setStyle({ backgroundColor: '#666' }));
+    retryBtn.on('pointerout', () => retryBtn.setStyle({ backgroundColor: '#444' }));
+    retryBtn.on('pointerdown', () => this.scene.start('TowerDefenseScene'));
+
+    const shopBtn = this.add.text(this.scale.width / 2, 410, '🛒 Go to Shop', {
+      fontSize: '24px', fill: '#00ffcc', backgroundColor: '#222', padding: { x: 16, y: 8 }
+    }).setOrigin(0.5).setInteractive();
+    shopBtn.on('pointerover', () => shopBtn.setStyle({ backgroundColor: '#444' }));
+    shopBtn.on('pointerout', () => shopBtn.setStyle({ backgroundColor: '#222' }));
+    shopBtn.on('pointerdown', () => this.scene.start('ShopScene'));
+  }
+}
+
+class ShopScene extends Phaser.Scene {
+  constructor() {
+    super('ShopScene');
+  }
+
+  create() {
+    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x001f33).setOrigin(0);
+    this.add.text(this.scale.width / 2, 70, '🛒 Upgrade Shop', {
+      fontSize: '40px', fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    this.tokenDisplay = this.add.text(this.scale.width / 2, 130, `💰 Tokens: ${playerTokens}`, {
+      fontSize: '24px', fill: '#00ffcc'
+    }).setOrigin(0.5);
+
+    const upgrades = [
+      { name: 'Faster Bullets', cost: 50 },
+      { name: 'Increased Range', cost: 75 },
+      { name: 'Double Damage', cost: 100 }
+    ];
+
+    upgrades.forEach((upgrade, i) => {
+      const y = 200 + i * 80;
+      const button = this.add.rectangle(this.scale.width / 2, y, 300, 50, 0x114466).setOrigin(0.5).setInteractive();
+      const label = this.add.text(this.scale.width / 2, y, `${upgrade.name} - ${upgrade.cost} tokens`, {
+        fontSize: '20px', fill: '#ffffff'
+      }).setOrigin(0.5);
+
+      button.on('pointerover', () => button.setFillStyle(0x226688));
+      button.on('pointerout', () => button.setFillStyle(0x114466));
+      button.on('pointerdown', () => {
+        if (playerTokens >= upgrade.cost) {
+          playerTokens -= upgrade.cost;
+          localStorage.setItem('tokens', playerTokens);
+          label.setText(`${upgrade.name} - PURCHASED`);
+          this.tokenDisplay.setText(`💰 Tokens: ${playerTokens}`);
+        } else {
+          label.setText(`${upgrade.name} - NOT ENOUGH TOKENS`);
+        }
+      });
+    });
+
+    const backBtn = this.add.text(this.scale.width / 2, this.scale.height - 80, '⬅️ Back to Home', {
+      fontSize: '24px', fill: '#ffffff', backgroundColor: '#444', padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setInteractive();
+    backBtn.on('pointerover', () => backBtn.setStyle({ backgroundColor: '#666' }));
+    backBtn.on('pointerout', () => backBtn.setStyle({ backgroundColor: '#444' }));
+    backBtn.on('pointerdown', () => this.scene.start('HomeScene'));
+  }
+}
 
 class TowerDefenseScene extends Phaser.Scene {
   constructor() {
     super('TowerDefenseScene');
+    this.maxHealth = 100;
+    this.health = this.maxHealth;
+    this.tokens = playerTokens;
+    this.currentWave = 1;
+    this.waveProgress = 0;
+    this.selectedTowerIndex = 0;
   }
 
   preload() {
-    this.load.image('enemy', 'https://labs.phaser.io/assets/sprites/aliengreen.png');
-    this.load.image('background', 'https://labs.phaser.io/assets/skies/space3.png');
-    this.load.image('bullet', 'https://labs.phaser.io/assets/sprites/bullet.png');
-    this.load.image('rangeCircle', 'https://labs.phaser.io/assets/particles/yellow.png');
-    this.load.image('tower1', 'https://labs.phaser.io/assets/sprites/cannon.png');
-    this.load.image('tower2', 'https://labs.phaser.io/assets/sprites/tank.png');
-    this.load.image('tower3', 'https://labs.phaser.io/assets/sprites/turret.png');
-    this.load.image('tower4', 'https://labs.phaser.io/assets/sprites/robot.png');
-    this.load.image('tower5', 'https://labs.phaser.io/assets/sprites/ufo.png');
+    // Load assets here (placeholder graphics)
+    this.load.image('bullet', 'https://i.imgur.com/7mxP0Df.png');
   }
 
   create() {
-    this.score = 0;
-    this.gold = 100;
-    this.wave = 1;
-    this.highScore = parseInt(localStorage.getItem('highScore')) || 0;
+    // Background - simple path visual
+    this.cameras.main.setBackgroundColor('#222222');
+    this.drawPath();
 
-    this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, 'background')
-        .setDisplaySize(this.cameras.main.width, this.cameras.main.height);
+    // Initialize game variables
+    this.health = this.maxHealth;
+    this.tokens = playerTokens;
+    this.currentWave = 1;
+    this.waveProgress = 0;
 
-    this.towers = this.physics.add.group();
-    this.enemies = this.physics.add.group();
-    this.bullets = this.physics.add.group();
+    // HUD setup
+    this.createHUD();
 
-    this.path = new Phaser.Curves.Path(100, 100)
-      .lineTo(700, 100)
-      .lineTo(700, 300)
-      .lineTo(300, 300)
-      .lineTo(300, 500)
-      .lineTo(700, 500);
+    // Tower placement array
+    this.towers = [];
 
-    this.graphics = this.add.graphics();
-    this.graphics.lineStyle(8, 0x00ff00, 0.4);
-    this.path.draw(this.graphics);
-
-    this.towerOptions = this.add.group();
-    const towerConfigs = [
-      { key: 'tower1', cost: 20, range: 100, rate: 800 },
-      { key: 'tower2', cost: 40, range: 130, rate: 700 },
-      { key: 'tower3', cost: 60, range: 150, rate: 600 },
-      { key: 'tower4', cost: 80, range: 180, rate: 500 },
-      { key: 'tower5', cost: 100, range: 200, rate: 400 }
-    ];
-
-    towerConfigs.forEach((config, i) => {
-      const icon = this.add.image(70 + 60 * i, this.cameras.main.height - 40, config.key).setInteractive().setScale(0.5);
-      icon.setData(config);
-      icon.on('pointerdown', () => this.selectedTower = icon);
-      this.towerOptions.add(icon);
-    });
-
-    this.input.on('pointerdown', (pointer) => {
-      if (!this.input.hitTest(pointer.x, pointer.y, this.towerOptions.getChildren()).length && this.selectedTower && this.gold >= this.selectedTower.getData('cost')) {
-        const data = this.selectedTower.getData();
-        const tower = this.towers.create(pointer.x, pointer.y, data.key).setScale(0.5);
-        tower.lastFired = 0;
-        tower.range = data.range;
-        tower.fireRate = data.rate;
-        this.gold -= data.cost;
-
-        const rangeVis = this.add.circle(tower.x, tower.y, tower.range, 0xffff00, 0.2);
-        tower.setData('rangeVis', rangeVis);
+    // Enable placing towers on click
+    this.input.on('pointerdown', pointer => {
+      if (pointer.y > this.scale.height - 70) return; // avoid placing on HUD
+      const towerData = this.towerData[this.selectedTowerIndex];
+      if (this.tokens >= towerData.cost) {
+        this.placeTower(pointer.x, pointer.y, towerData);
+        this.tokens -= towerData.cost;
+        this.updateTokens(this.tokens);
       }
     });
 
-    this.time.addEvent({ delay: 8000, callback: this.spawnWave, callbackScope: this, loop: true });
+    // Game loop timers for wave progress (demo)
+    this.waveTimer = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        this.waveProgress += 0.1;
+        if (this.waveProgress >= 1) {
+          this.currentWave++;
+          this.updateWaveNumber(this.currentWave);
+          this.waveProgress = 0;
+          // Reward tokens for wave completion
+          this.tokens += 20;
+          this.updateTokens(this.tokens);
+        }
+        this.updateWaveProgress(this.waveProgress);
+      }
+    });
 
-    this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
+    // Towers data for selection panel
+    this.towerData = [
+      { name: 'Basic', cost: 10, color: 0x00aaff },
+      { name: 'Sniper', cost: 30, color: 0xaa00ff },
+      { name: 'Splash', cost: 50, color: 0xff8800 },
+      { name: 'Freeze', cost: 40, color: 0x00ffaa },
+      { name: 'Laser', cost: 70, color: 0xff0055 },
+    ];
 
-    this.health = 10;
-    this.healthText = this.add.text(10, 10, `Health: ${this.health}`, { fontSize: '18px', fill: '#fff' });
-    this.goldText = this.add.text(10, 30, `Gold: ${this.gold}`, { fontSize: '18px', fill: '#fff' });
-    this.scoreText = this.add.text(10, 50, `Score: ${this.score}`, { fontSize: '18px', fill: '#fff' });
+    this.createTowerSelectionPanel();
+
+    this.selectTower(this.selectedTowerIndex);
   }
 
-  // ... [rest of TowerDefenseScene unchanged] ...
+  drawPath() {
+    const graphics = this.add.graphics();
+    graphics.lineStyle(6, 0xffff00);
+    // Draw a curved path (example)
+    graphics.beginPath();
+    graphics.moveTo(50, this.scale.height - 150);
+    graphics.bezierCurveTo(this.scale.width / 2, this.scale.height - 300, this.scale.width / 2, 100, this.scale.width - 50, 150);
+    graphics.strokePath();
+    this.pathGraphics = graphics;
+  }
+
+  createHUD() {
+    // HUD background
+    this.hudBg = this.add.rectangle(0, 0, this.scale.width, 70, 0x222222, 0.85).setOrigin(0);
+
+    // Health bar background
+    this.healthBarBg = this.add.rectangle(20, 20, 200, 20, 0x660000).setOrigin(0, 0.5);
+    // Health bar foreground
+    this.healthBar = this.add.rectangle(20, 20, 200, 20, 0xff0000).setOrigin(0, 0.5);
+
+    // Tokens display
+    this.tokenText = this.add.text(240, 20, `💰 Tokens: ${this.tokens}`, { fontSize: '20px', fill: '#00ffcc' });
+
+    // Wave text
+    this.waveText = this.add.text(this.scale.width / 2, 20, `Wave: ${this.currentWave}`, { fontSize: '22px', fill: '#ffffff' }).setOrigin(0.5, 0.5);
+
+    // Wave progress bar background
+    this.waveBarBg = this.add.rectangle(this.scale.width / 2 - 100, 50, 200, 12, 0x444444).setOrigin(0, 0.5);
+    // Wave progress bar foreground
+    this.waveBar = this.add.rectangle(this.scale.width / 2 - 100, 50, 0, 12, 0x00ff00).setOrigin(0, 0.5);
+
+    // Tower selection panel background
+    this.towerPanelBg = this.add.rectangle(0, this.scale.height - 70, this.scale.width, 70, 0x111111, 0.9).setOrigin(0);
+  }
+
+  createTowerSelectionPanel() {
+    this.towerIcons = [];
+    const startX = 20;
+    const gap = 120;
+    this.towerData.forEach((tower, i) => {
+      let x = startX + i * gap;
+      let icon = this.add.rectangle(x, this.scale.height - 35, 80, 50, tower.color).setOrigin(0, 0.5).setInteractive();
+      let costText = this.add.text(x + 40, this.scale.height - 35, `💰${tower.cost}`, { fontSize: '18px', fill: '#ffffff' }).setOrigin(0.5);
+      let nameText = this.add.text(x + 40, this.scale.height - 55, tower.name, { fontSize: '16px', fill: '#ccc' }).setOrigin(0.5);
+      icon.on('pointerdown', () => this.selectTower(i));
+      icon.on('pointerover', () => icon.setStrokeStyle(2, 0xffff00));
+      icon.on('pointerout', () => {
+        if (this.selectedTowerIndex !== i) icon.setStrokeStyle();
+      });
+      this.towerIcons.push(icon);
+    });
+  }
+
+  selectTower(index) {
+    this.selectedTowerIndex = index;
+    this.towerIcons.forEach((icon, i) => {
+      if (i === index) {
+        icon.setStrokeStyle(3, 0xffff00);
+      } else {
+        icon.setStrokeStyle();
+      }
+    });
+  }
+
+  placeTower(x, y, towerData) {
+    // Simple tower visual for demo
+    const tower = this.add.rectangle(x, y, 40, 40, towerData.color).setOrigin(0.5);
+    tower.setStrokeStyle(2, 0xffffff);
+    this.towers.push({ sprite: tower, data: towerData });
+  }
+
+  updateHealth(newHealth) {
+    this.health = Phaser.Math.Clamp(newHealth, 0, this.maxHealth);
+    this.tweens.add({
+      targets: this.healthBar,
+      displayWidth: 200 * (this.health / this.maxHealth),
+      duration: 300,
+      ease: 'Power2'
+    });
+  }
+
+  updateWaveProgress(progress) {
+    this.waveProgress = Phaser.Math.Clamp(progress, 0, 1);
+    this.waveBar.displayWidth = 200 * this.waveProgress;
+  }
+
+  updateWaveNumber(num) {
+    this.currentWave = num;
+    this.waveText.setText(`Wave: ${this.currentWave}`);
+  }
+
+  updateTokens(newTokens) {
+    this.tokens = newTokens;
+    this.tokenText.setText(`💰 Tokens: ${this.tokens}`);
+    playerTokens = newTokens;
+    localStorage.setItem('tokens', playerTokens);
+  }
+
+  update() {
+    // Game logic updates here if needed
+  }
 }
 
 const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
-  scene: [HomeScene, TowerDefenseScene, GameOverScene, ShopScene],
-  physics: {
-    default: 'arcade',
-    arcade: { debug: false }
-  }
+  scene: [HomeScene, TowerDefenseScene, GameOverScene, ShopScene]
 };
 
-window.addEventListener('load', () => new Phaser.Game(config));
+const game = new Phaser.Game(config);
 </script>
 </body>
 </html>
