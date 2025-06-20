@@ -143,14 +143,11 @@ class TowerDefenseScene extends Phaser.Scene {
     this.selectedTowerIndex = 0;
   }
 
-  preload() {
-    // Load assets here (placeholder graphics)
-    this.load.image('bullet', 'https://i.imgur.com/7mxP0Df.png');
-  }
-
   create() {
-    // Background - simple path visual
-    this.cameras.main.setBackgroundColor('#222222');
+    // Set camera background color explicitly
+    this.cameras.main.setBackgroundColor('#1a1a1a');
+
+    // Draw a thick yellow path line for visibility
     this.drawPath();
 
     // Initialize game variables
@@ -165,7 +162,20 @@ class TowerDefenseScene extends Phaser.Scene {
     // Tower placement array
     this.towers = [];
 
-    // Enable placing towers on click
+    // Towers data for selection panel
+    this.towerData = [
+      { name: 'Basic', cost: 10, color: 0x00ccff },
+      { name: 'Sniper', cost: 30, color: 0xaa00ff },
+      { name: 'Splash', cost: 50, color: 0xffaa00 },
+      { name: 'Freeze', cost: 40, color: 0x00ffaa },
+      { name: 'Laser', cost: 70, color: 0xff0055 },
+    ];
+
+    this.createTowerSelectionPanel();
+
+    this.selectTower(this.selectedTowerIndex);
+
+    // Enable placing towers on click, but only above the HUD
     this.input.on('pointerdown', pointer => {
       if (pointer.y > this.scale.height - 70) return; // avoid placing on HUD
       const towerData = this.towerData[this.selectedTowerIndex];
@@ -176,7 +186,10 @@ class TowerDefenseScene extends Phaser.Scene {
       }
     });
 
-    // Game loop timers for wave progress (demo)
+    // Add a test enemy moving on path for visual feedback
+    this.createTestEnemy();
+
+    // Demo wave timer for wave progress and tokens
     this.waveTimer = this.time.addEvent({
       delay: 1000,
       loop: true,
@@ -193,30 +206,48 @@ class TowerDefenseScene extends Phaser.Scene {
         this.updateWaveProgress(this.waveProgress);
       }
     });
-
-    // Towers data for selection panel
-    this.towerData = [
-      { name: 'Basic', cost: 10, color: 0x00aaff },
-      { name: 'Sniper', cost: 30, color: 0xaa00ff },
-      { name: 'Splash', cost: 50, color: 0xff8800 },
-      { name: 'Freeze', cost: 40, color: 0x00ffaa },
-      { name: 'Laser', cost: 70, color: 0xff0055 },
-    ];
-
-    this.createTowerSelectionPanel();
-
-    this.selectTower(this.selectedTowerIndex);
   }
 
   drawPath() {
-    const graphics = this.add.graphics();
-    graphics.lineStyle(6, 0xffff00);
-    // Draw a curved path (example)
-    graphics.beginPath();
-    graphics.moveTo(50, this.scale.height - 150);
-    graphics.bezierCurveTo(this.scale.width / 2, this.scale.height - 300, this.scale.width / 2, 100, this.scale.width - 50, 150);
-    graphics.strokePath();
-    this.pathGraphics = graphics;
+    if(this.pathGraphics) this.pathGraphics.clear();
+
+    this.pathGraphics = this.add.graphics();
+    this.pathGraphics.lineStyle(8, 0xffff00);
+
+    // Draw a bright visible curve
+    this.pathGraphics.beginPath();
+    this.pathGraphics.moveTo(50, this.scale.height - 150);
+    this.pathGraphics.bezierCurveTo(this.scale.width / 2, this.scale.height - 300, this.scale.width / 2, 100, this.scale.width - 50, 150);
+    this.pathGraphics.strokePath();
+  }
+
+  createTestEnemy() {
+    // Create a simple circle to move along the path visually
+    this.enemy = this.add.circle(50, this.scale.height - 150, 12, 0xff4444);
+
+    this.tweenPathProgress = { t: 0 };
+
+    this.tweens.add({
+      targets: this.tweenPathProgress,
+      t: 1,
+      duration: 8000,
+      ease: 'Linear',
+      repeat: -1,
+      onUpdate: () => {
+        const t = this.tweenPathProgress.t;
+
+        // Calculate position along bezier curve
+        const p0 = new Phaser.Math.Vector2(50, this.scale.height - 150);
+        const p1 = new Phaser.Math.Vector2(this.scale.width / 2, this.scale.height - 300);
+        const p2 = new Phaser.Math.Vector2(this.scale.width / 2, 100);
+        const p3 = new Phaser.Math.Vector2(this.scale.width - 50, 150);
+
+        const x = Phaser.Math.Interpolation.Bezier([p0.x, p1.x, p2.x, p3.x], t);
+        const y = Phaser.Math.Interpolation.Bezier([p0.y, p1.y, p2.y, p3.y], t);
+
+        this.enemy.setPosition(x, y);
+      }
+    });
   }
 
   createHUD() {
@@ -273,9 +304,9 @@ class TowerDefenseScene extends Phaser.Scene {
   }
 
   placeTower(x, y, towerData) {
-    // Simple tower visual for demo
-    const tower = this.add.rectangle(x, y, 40, 40, towerData.color).setOrigin(0.5);
-    tower.setStrokeStyle(2, 0xffffff);
+    // Bigger brighter towers for visibility
+    const tower = this.add.rectangle(x, y, 50, 50, towerData.color).setOrigin(0.5);
+    tower.setStrokeStyle(3, 0xffffff);
     this.towers.push({ sprite: tower, data: towerData });
   }
 
