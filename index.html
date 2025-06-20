@@ -1,462 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tower Defense Game</title>
+  <meta charset="UTF-8">
+  <title>Phaser Tower Defense</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <style>
-    body { margin: 0; font-family: sans-serif; background: #111; color: #fff; }
-    canvas { background: #222; display: block; margin: 0 auto; border: 2px solid #333; }
-    #ui { text-align: center; margin: 10px; }
-    .button { background: #444; color: white; padding: 10px 20px; margin: 5px; cursor: pointer; border: none; }
-    .button:hover { background: #666; }
-    #gameOver {
-      visibility: hidden;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.85);
-      color: white;
-      font-size: 2em;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      z-index: 100;
+    body {
+      margin: 0;
+      overflow: hidden;
     }
-    #gameOver.show {
-      visibility: visible;
-    }
-    #towerInfo {
-      margin-top: 10px;
-      text-align: center;
+    canvas {
+      display: block;
     }
   </style>
 </head>
 <body>
-  <div id="ui">
-    <span>Gold: <span id="gold">100</span></span>
-    <span style="margin-left:20px;">Health: <span id="health">10</span></span>
-    <span style="margin-left:20px;">Score: <span id="score">0</span></span>
-    <span style="margin-left:20px;">High Score: <span id="highScore">0</span></span>
-    <span style="margin-left:20px;">Wave: <span id="wave">0</span></span>
-    <span style="margin-left:20px;">Next Wave In: <span id="waveTimer">20</span>s</span>
-    <button id="startWaveButton" class="button" style="display:none;" onclick="game.startWaveEarly()">Start Wave</button><br>
-    <button class="button" onclick="game.setTowerType('basic')">Place Basic Tower (50G)</button>
-    <button class="button" onclick="game.setTowerType('sniper')">Place Sniper Tower (100G)</button>
-    <button class="button" onclick="game.setTowerType('slow')">Place Slow Tower (75G)</button>
-  </div>
-  <div id="towerInfo" style="display:none;">
-    Selected Tower: <span id="towerType"></span><br>
-    Level: <span id="towerLevel"></span><br>
-    Damage: <span id="towerDamage"></span><br>
-    Range: <span id="towerRange"></span><br>
-    <button id="upgradeButton" class="button">Upgrade (<span id="upgradeCost"></span>G)</button>
-  </div>
-  <div id="gameOver">
-    <div>Game Over</div>
-    <div>Your Score: <span id="finalScore"></span></div>
-    <div>High Score: <span id="finalHighScore"></span></div>
-    <button onclick="location.reload()" class="button">Restart Game</button>
-  </div>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
-  <audio id="shootSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
-  <audio id="hitSound" src="https://www.soundjay.com/button/button-3.mp3"></audio>
+<script>
+class TowerDefenseScene extends Phaser.Scene {
+  constructor() {
+    super('TowerDefenseScene');
+  }
 
-  <script>
-    const TILE_SIZE = 40;
-    const MAP_WIDTH = 20;
-    const MAP_HEIGHT = 15;
+  preload() {
+    this.load.image('enemy', 'https://labs.phaser.io/assets/sprites/aliengreen.png');
+    this.load.image('tower', 'https://labs.phaser.io/assets/sprites/tank.png');
+    this.load.image('bullet', 'https://labs.phaser.io/assets/sprites/bullet.png');
+    this.load.image('background', 'https://labs.phaser.io/assets/skies/space3.png');
+  }
 
-    class Game {
-      constructor() {
-        this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.gold = 100;
-        this.health = 10;
-        this.score = 0;
-        this.wave = 0;
-        this.highScore = parseInt(localStorage.getItem('td_highscore')) || 0;
-        this.enemies = [];
-        this.towers = [];
-        this.projectiles = [];
-        this.selectedTowerType = null;
-        this.placingTower = false;
-        this.selectedTower = null;
-        this.path = this.generatePath();
-        this.map = this.generateMap();
-        this.running = true;
-        this.nextWaveCountdown = 20;
-        this.lastTime = null;
-        this.cursorX = 0;
-        this.cursorY = 0;
-        this.cursorGridX = 0;
-        this.cursorGridY = 0;
-        this.waveActive = false;
-        this.initListeners();
-        this.updateUI();
-        requestAnimationFrame(this.loop.bind(this));
-      }
+  create() {
+    this.add.image(400, 300, 'background');
 
-      generatePath() {
-        return [
-          { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 },
-          { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 },
-          { x: 4, y: 6 }, { x: 5, y: 6 }, { x: 6, y: 6 },
-          { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 },
-          { x: 9, y: 4 }, { x: 10, y: 4 }, { x: 11, y: 4 },
-          { x: 12, y: 4 }, { x: 13, y: 4 }, { x: 14, y: 5 },
-          { x: 15, y: 5 }, { x: 16, y: 6 }, { x: 17, y: 6 },
-          { x: 18, y: 5 }, { x: 19, y: 5 }
-        ];
-      }
+    this.towers = this.physics.add.group();
+    this.enemies = this.physics.add.group();
+    this.bullets = this.physics.add.group();
 
-      generateMap() {
-        const map = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(0));
-        for (let p of this.path) {
-          if (p.y >= 0 && p.y < MAP_HEIGHT && p.x >= 0 && p.x < MAP_WIDTH) {
-            map[p.y][p.x] = 1;
-          }
-        }
-        return map;
-      }
+    this.input.on('pointerdown', (pointer) => {
+      this.towers.create(pointer.x, pointer.y, 'tower').setScale(0.5);
+    });
 
-      setTowerType(type) {
-        this.selectedTowerType = type;
-        this.placingTower = true;
-      }
+    this.time.addEvent({
+      delay: 1000,
+      callback: this.spawnEnemy,
+      callbackScope: this,
+      loop: true
+    });
 
-      getTowerCost(type) {
-        return { basic: 50, sniper: 100, slow: 75 }[type];
-      }
+    this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
+  }
 
-      getTowerBaseRange(type) {
-        return { basic: 100, sniper: 200, slow: 100 }[type];
-      }
+  spawnEnemy() {
+    const enemy = this.enemies.create(0, Phaser.Math.Between(100, 500), 'enemy').setScale(0.5);
+    enemy.setVelocityX(50);
+  }
 
-      startWaveEarly() {
-        if (!this.waveActive && this.running) {
-          this.startNewWave();
+  hitEnemy(bullet, enemy) {
+    bullet.destroy();
+    enemy.destroy();
+  }
+
+  update(time, delta) {
+    this.towers.children.iterate((tower) => {
+      const enemy = this.physics.closest(tower, this.enemies.getChildren());
+      if (enemy && Phaser.Math.Distance.Between(tower.x, tower.y, enemy.x, enemy.y) < 150) {
+        if (!tower.lastFired || time > tower.lastFired + 500) {
+          const bullet = this.bullets.create(tower.x, tower.y, 'bullet').setScale(0.5);
+          this.physics.moveTo(bullet, enemy.x, enemy.y, 300);
+          tower.lastFired = time;
         }
       }
+    });
+  }
+}
 
-      startNewWave() {
-        this.wave++;
-        this.gold += 20 + this.wave * 5;
-        this.nextWaveCountdown = 10;
-        this.spawnWave();
-        this.waveActive = true;
-        document.getElementById('startWaveButton').style.display = 'none';
-        this.updateUI();
-      }
-
-      spawnWave() {
-        const count = 3 + this.wave * 2;
-        let spawned = 0;
-        const spawnRate = 1000;
-        const interval = setInterval(() => {
-          if (!this.running || spawned >= count) {
-            clearInterval(interval);
-            return;
-          }
-          const type = spawned % 5 === 0 ? 'tank' : (spawned % 3 === 0 ? 'fast' : 'normal');
-          this.enemies.push(new Enemy(this.path, this.wave, type));
-          spawned++;
-        }, spawnRate);
-      }
-
-      updateUI() {
-        document.getElementById('gold').textContent = this.gold;
-        document.getElementById('health').textContent = this.health;
-        document.getElementById('score').textContent = this.score;
-        document.getElementById('highScore').textContent = this.highScore;
-        document.getElementById('wave').textContent = this.wave;
-        document.getElementById('waveTimer').textContent = Math.ceil(this.nextWaveCountdown);
-
-        if (this.selectedTower) {
-          document.getElementById('towerInfo').style.display = 'block';
-          document.getElementById('towerType').textContent = this.selectedTower.type;
-          document.getElementById('towerLevel').textContent = this.selectedTower.level;
-          document.getElementById('towerDamage').textContent = this.selectedTower.damage;
-          document.getElementById('towerRange').textContent = this.selectedTower.range;
-          const upgradeCost = 50 * this.selectedTower.level;
-          document.getElementById('upgradeCost').textContent = upgradeCost;
-          document.getElementById('upgradeButton').disabled = this.gold < upgradeCost;
-        } else {
-          document.getElementById('towerInfo').style.display = 'none';
-        }
-
-        document.getElementById('startWaveButton').style.display = (!this.waveActive && this.wave > 0) ? 'inline-block' : 'none';
-      }
-
-      initListeners() {
-        this.canvas.addEventListener('click', (e) => {
-          const rect = this.canvas.getBoundingClientRect();
-          const x = Math.floor((e.clientX - rect.left) / TILE_SIZE);
-          const y = Math.floor((e.clientY - rect.top) / TILE_SIZE);
-
-          if (this.placingTower) {
-            const cost = this.getTowerCost(this.selectedTowerType);
-            if (this.map[y][x] === 0 && !this.towers.some(t => t.gridX === x && t.gridY === y) && this.gold >= cost) {
-              this.towers.push(new Tower(x * TILE_SIZE, y * TILE_SIZE, this.selectedTowerType, x, y));
-              this.gold -= cost;
-              this.updateUI();
-              this.placingTower = false;
-            }
-          } else {
-            const tower = this.towers.find(t => t.gridX === x && t.gridY === y);
-            this.selectedTower = tower || null;
-            this.updateUI();
-          }
-        });
-
-        this.canvas.addEventListener('mousemove', (e) => {
-          const rect = this.canvas.getBoundingClientRect();
-          this.cursorX = e.clientX - rect.left;
-          this.cursorY = e.clientY - rect.top;
-          this.cursorGridX = Math.floor(this.cursorX / TILE_SIZE);
-          this.cursorGridY = Math.floor(this.cursorY / TILE_SIZE);
-        });
-
-        document.getElementById('upgradeButton').addEventListener('click', () => {
-          if (this.selectedTower) {
-            const cost = 50 * this.selectedTower.level;
-            if (this.gold >= cost) {
-              this.gold -= cost;
-              this.selectedTower.upgrade();
-              this.updateUI();
-            }
-          }
-        });
-      }
-
-      endGame() {
-        document.getElementById('finalScore').textContent = this.score;
-        document.getElementById('finalHighScore').textContent = this.highScore;
-        document.getElementById('gameOver').classList.add('show');
-        this.running = false;
-      }
-
-      loop(timestamp) {
-        if (!this.running) return;
-
-        if (!this.lastTime) this.lastTime = timestamp;
-        const delta = (timestamp - this.lastTime) / 1000;
-        this.lastTime = timestamp;
-
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Draw connected path
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = '#555';
-        this.ctx.lineWidth = 20;
-        this.ctx.moveTo(this.path[0].x * TILE_SIZE + TILE_SIZE / 2, this.path[0].y * TILE_SIZE + TILE_SIZE / 2);
-        for (let i = 1; i < this.path.length; i++) {
-          this.ctx.lineTo(this.path[i].x * TILE_SIZE + TILE_SIZE / 2, this.path[i].y * TILE_SIZE + TILE_SIZE / 2);
-        }
-        this.ctx.stroke();
-
-        // Draw grid tiles
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-          for (let x = 0; x < MAP_WIDTH; x++) {
-            if (this.map[y][x] === 0) {
-              this.ctx.fillStyle = '#333';
-              this.ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-            }
-          }
-        }
-
-        this.towers.forEach(t => {
-          t.update(this.ctx, this.enemies, this.projectiles);
-          if (t === this.selectedTower) {
-            this.ctx.strokeStyle = 'white';
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(t.gridX * TILE_SIZE, t.gridY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-          }
-        });
-
-        this.projectiles.forEach(p => p.update(this.ctx));
-        this.projectiles = this.projectiles.filter(p => !p.dead);
-
-        this.enemies = this.enemies.filter(e => {
-          if (e.health <= 0) {
-            this.gold += 10;
-            this.score += 10;
-            document.getElementById('hitSound').play();
-            if (this.score > this.highScore) {
-              this.highScore = this.score;
-              localStorage.setItem('td_highscore', this.highScore);
-            }
-            this.updateUI();
-            return false;
-          }
-          if (e.finished) {
-            this.health--;
-            this.updateUI();
-            if (this.health <= 0) this.endGame();
-            return false;
-          }
-          e.update(this.ctx);
-          return true;
-        });
-
-        if (!this.enemies.length && this.waveActive) {
-          this.waveActive = false;
-          this.updateUI();
-        }
-
-        if (!this.waveActive) {
-          this.nextWaveCountdown -= delta;
-          if (this.nextWaveCountdown <= 0 && this.running) {
-            this.startNewWave();
-          }
-        }
-
-        this.updateUI();
-        requestAnimationFrame(this.loop.bind(this));
-      }
+const config = {
+  type: Phaser.AUTO,
+  width: 800,
+  height: 600,
+  scene: TowerDefenseScene,
+  physics: {
+    default: 'arcade',
+    arcade: {
+      debug: false
     }
+  }
+};
 
-    class Enemy {
-      constructor(path, wave, type = 'normal') {
-        this.path = path;
-        this.index = 0;
-        this.x = path[0].x * TILE_SIZE;
-        this.y = path[0].y * TILE_SIZE;
-        const stats = {
-          normal: { speed: 1, health: 30 },
-          fast: { speed: 2, health: 20 },
-          tank: { speed: 0.5, health: 100 }
-        }[type];
-        this.baseSpeed = stats.speed + wave * 0.1;
-        this.speed = this.baseSpeed;
-        this.maxHealth = stats.health + wave * 5;
-        this.health = this.maxHealth;
-        this.finished = false;
-        this.color = { normal: '#f44', fast: '#0ff', tank: '#880' }[type];
-        this.slowed = false;
-        this.slowTimer = 0;
-      }
-
-      update(ctx) {
-        if (this.slowed) {
-          this.slowTimer--;
-          if (this.slowTimer <= 0) {
-            this.slowed = false;
-            this.speed = this.baseSpeed;
-          }
-        }
-
-        const next = this.path[this.index + 1];
-        if (!next) return this.finished = true;
-        const dx = next.x * TILE_SIZE - this.x;
-        const dy = next.y * TILE_SIZE - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < this.speed) this.index++;
-        else {
-          this.x += this.speed * dx / dist;
-          this.y += this.speed * dy / dist;
-        }
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x + 20, this.y + 20, 15, 0, 2 * Math.PI);
-        ctx.fill();
-
-        const healthRatio = this.health / this.maxHealth;
-        ctx.fillStyle = 'red';
-        ctx.fillRect(this.x + 5, this.y + 10, 30, 5);
-        ctx.fillStyle = 'green';
-        ctx.fillRect(this.x + 5, this.y + 10, 30 * healthRatio, 5);
-      }
-    }
-
-    class Tower {
-      constructor(x, y, type, gridX, gridY) {
-        this.x = x + TILE_SIZE / 2;
-        this.y = y + TILE_SIZE / 2;
-        this.gridX = gridX;
-        this.gridY = gridY;
-        this.type = type;
-        this.level = 1;
-        this.cooldown = 0;
-        this.setStats();
-      }
-
-      setStats() {
-        const base = {
-          basic: { range: 100, rate: 60, damage: 10, slowDuration: 0, color: 'blue' },
-          sniper: { range: 200, rate: 100, damage: 25, slowDuration: 0, color: 'cyan' },
-          slow: { range: 100, rate: 60, damage: 5, slowDuration: 120, color: 'green' }
-        }[this.type];
-        this.range = base.range + this.level * 10;
-        this.fireRate = base.rate - this.level * 5;
-        this.damage = base.damage + this.level * 5;
-        this.slowDuration = base.slowDuration;
-        this.color = base.color;
-      }
-
-      upgrade() {
-        this.level++;
-        this.setStats();
-      }
-
-      update(ctx, enemies, projectiles) {
-        if (this.cooldown-- > 0) return;
-        for (let enemy of enemies) {
-          const dx = enemy.x - this.x;
-          const dy = enemy.y - this.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < this.range) {
-            projectiles.push(new Projectile(this.x, this.y, enemy, this.damage, this.slowDuration));
-            document.getElementById('shootSound').play();
-            this.cooldown = this.fireRate;
-            break;
-          }
-        }
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 10 + this.level, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-    }
-
-    class Projectile {
-      constructor(x, y, target, damage, slowDuration = 0) {
-        this.x = x;
-        this.y = y;
-        this.target = target;
-        this.damage = damage;
-        this.slowDuration = slowDuration;
-        this.speed = 6;
-        this.dead = false;
-      }
-
-      update(ctx) {
-        const dx = this.target.x - this.x;
-        const dy = this.target.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < this.speed) {
-          this.target.health -= this.damage;
-          if (this.slowDuration > 0) {
-            this.target.slowed = true;
-            this.target.slowTimer = this.slowDuration;
-            this.target.speed = this.target.baseSpeed * 0.5;
-          }
-          this.dead = true;
-          return;
-        }
-        this.x += this.speed * dx / dist;
-        this.y += this.speed * dy / dist;
-        ctx.fillStyle = 'yellow';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 4, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-    }
-
-    const game = new Game();
-  </script>
+new Phaser.Game(config);
+</script>
 </body>
 </html>
