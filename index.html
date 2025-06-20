@@ -9,6 +9,7 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
+      background: #000;
     }
     canvas {
       display: block;
@@ -17,15 +18,20 @@
 </head>
 <body>
 <script>
+let playerTokens = parseInt(localStorage.getItem('tokens')) || 0;
+
 class HomeScene extends Phaser.Scene {
   constructor() {
     super('HomeScene');
   }
 
   create() {
-    this.add.text(400, 200, 'Tower Defense', { fontSize: '40px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(400, 300, 'Click to Start', { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
-    this.input.once('pointerdown', () => this.scene.start('TowerDefenseScene'));
+    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x000000).setOrigin(0);
+    this.add.text(this.scale.width / 2, 150, '⚔️ Tower Defense', { fontSize: '48px', fill: '#f8e71c', fontStyle: 'bold' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 220, `Tokens: ${playerTokens}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
+
+    this.add.text(this.scale.width / 2, 300, 'Click to Start Game', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('TowerDefenseScene'));
+    this.add.text(this.scale.width / 2, 360, '🛒 Open Shop', { fontSize: '24px', fill: '#00ffcc' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('ShopScene'));
   }
 }
 
@@ -37,14 +43,36 @@ class GameOverScene extends Phaser.Scene {
   init(data) {
     this.score = data.score;
     this.highScore = data.highScore;
+    this.tokensEarned = Math.floor(this.score / 50);
+    playerTokens += this.tokensEarned;
+    localStorage.setItem('tokens', playerTokens);
   }
 
   create() {
-    this.add.text(400, 200, 'Game Over', { fontSize: '40px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(400, 260, `Score: ${this.score}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(400, 300, `High Score: ${this.highScore}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(400, 360, 'Click to Play Again', { fontSize: '20px', fill: '#ffffff' }).setOrigin(0.5);
-    this.input.once('pointerdown', () => this.scene.start('TowerDefenseScene'));
+    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x111111).setOrigin(0);
+    this.add.text(this.scale.width / 2, 140, '💀 Game Over', { fontSize: '42px', fill: '#ff5555' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 200, `Score: ${this.score}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 240, `High Score: ${this.highScore}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 280, `Tokens Earned: ${this.tokensEarned}`, { fontSize: '24px', fill: '#00ffcc' }).setOrigin(0.5);
+
+    this.add.text(this.scale.width / 2, 340, 'Click to Play Again', { fontSize: '20px', fill: '#cccccc' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('TowerDefenseScene'));
+    this.add.text(this.scale.width / 2, 400, '🛒 Go to Shop', { fontSize: '20px', fill: '#00ffcc' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('ShopScene'));
+  }
+}
+
+class ShopScene extends Phaser.Scene {
+  constructor() {
+    super('ShopScene');
+  }
+
+  create() {
+    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x000022).setOrigin(0);
+    this.add.text(this.scale.width / 2, 60, '🛒 Tower Shop', { fontSize: '36px', fill: '#ffffff' }).setOrigin(0.5);
+    this.add.text(this.scale.width / 2, 110, `Tokens: ${playerTokens}`, { fontSize: '20px', fill: '#00ffcc' }).setOrigin(0.5);
+
+    this.add.text(this.scale.width / 2, 180, 'Upgrade system coming soon!', { fontSize: '20px', fill: '#cccccc' }).setOrigin(0.5);
+
+    this.add.text(this.scale.width / 2, 300, '⬅️ Back to Home', { fontSize: '22px', fill: '#ffffff' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('HomeScene'));
   }
 }
 
@@ -57,9 +85,12 @@ class TowerDefenseScene extends Phaser.Scene {
     this.load.image('enemy', 'https://labs.phaser.io/assets/sprites/aliengreen.png');
     this.load.image('background', 'https://labs.phaser.io/assets/skies/space3.png');
     this.load.image('bullet', 'https://labs.phaser.io/assets/sprites/bullet.png');
-    for (let i = 1; i <= 5; i++) {
-      this.load.image('tower' + i, `https://labs.phaser.io/assets/sprites/tank.png`); // Reuse sprite
-    }
+    this.load.image('rangeCircle', 'https://labs.phaser.io/assets/particles/yellow.png');
+    this.load.image('tower1', 'https://labs.phaser.io/assets/sprites/cannon.png');
+    this.load.image('tower2', 'https://labs.phaser.io/assets/sprites/tank.png');
+    this.load.image('tower3', 'https://labs.phaser.io/assets/sprites/turret.png');
+    this.load.image('tower4', 'https://labs.phaser.io/assets/sprites/robot.png');
+    this.load.image('tower5', 'https://labs.phaser.io/assets/sprites/ufo.png');
   }
 
   create() {
@@ -78,29 +109,40 @@ class TowerDefenseScene extends Phaser.Scene {
     this.path = new Phaser.Curves.Path(0, 100).lineTo(800, 100).lineTo(800, 500).lineTo(0, 500);
 
     this.graphics = this.add.graphics();
-    this.graphics.lineStyle(3, 0xffffff, 1);
+    this.graphics.lineStyle(4, 0x00ff00, 0.6);
     this.path.draw(this.graphics);
 
     this.towerOptions = this.add.group();
-    const towerCosts = [20, 40, 60, 80, 100];
-    for (let i = 1; i <= 5; i++) {
-      const icon = this.add.image(60 * i, 560, 'tower' + i).setInteractive().setScale(0.4);
-      icon.cost = towerCosts[i - 1];
-      icon.setData('type', 'tower' + i);
+    const towerConfigs = [
+      { key: 'tower1', cost: 20, range: 100, rate: 800 },
+      { key: 'tower2', cost: 40, range: 130, rate: 700 },
+      { key: 'tower3', cost: 60, range: 150, rate: 600 },
+      { key: 'tower4', cost: 80, range: 180, rate: 500 },
+      { key: 'tower5', cost: 100, range: 200, rate: 400 }
+    ];
+
+    towerConfigs.forEach((config, i) => {
+      const icon = this.add.image(70 + 60 * i, this.cameras.main.height - 40, config.key).setInteractive().setScale(0.5);
+      icon.setData(config);
       icon.on('pointerdown', () => this.selectedTower = icon);
       this.towerOptions.add(icon);
-    }
+    });
 
     this.input.on('pointerdown', (pointer) => {
-      if (pointer.y < 500 && this.selectedTower && this.gold >= this.selectedTower.cost) {
-        const tower = this.towers.create(pointer.x, pointer.y, this.selectedTower.getData('type')).setScale(0.4);
+      if (pointer.y < this.cameras.main.height - 100 && this.selectedTower && this.gold >= this.selectedTower.getData('cost')) {
+        const data = this.selectedTower.getData();
+        const tower = this.towers.create(pointer.x, pointer.y, data.key).setScale(0.5);
         tower.lastFired = 0;
-        tower.fireRate = 500;
-        this.gold -= this.selectedTower.cost;
+        tower.range = data.range;
+        tower.fireRate = data.rate;
+        this.gold -= data.cost;
+
+        const rangeVis = this.add.circle(tower.x, tower.y, tower.range, 0xffff00, 0.2);
+        tower.setData('rangeVis', rangeVis);
       }
     });
 
-    this.time.addEvent({ delay: 5000, callback: this.spawnWave, callbackScope: this, loop: true });
+    this.time.addEvent({ delay: 8000, callback: this.spawnWave, callbackScope: this, loop: true });
 
     this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
 
@@ -113,11 +155,11 @@ class TowerDefenseScene extends Phaser.Scene {
   spawnWave() {
     for (let i = 0; i < this.wave; i++) {
       this.time.addEvent({
-        delay: i * 800,
+        delay: i * 1200,
         callback: () => {
           const enemy = this.add.follower(this.path, 0, 0, 'enemy').setScale(0.5);
           this.enemies.add(enemy);
-          enemy.startFollow({ duration: 10000 / this.wave, onComplete: () => {
+          enemy.startFollow({ duration: 15000 / Math.sqrt(this.wave), onComplete: () => {
             this.health--;
             this.healthText.setText(`Health: ${this.health}`);
             enemy.destroy();
@@ -150,12 +192,17 @@ class TowerDefenseScene extends Phaser.Scene {
   update(time, delta) {
     this.towers.children.iterate((tower) => {
       const enemy = this.physics.closest(tower, this.enemies.getChildren());
-      if (enemy && Phaser.Math.Distance.Between(tower.x, tower.y, enemy.x, enemy.y) < 150) {
+      if (enemy && Phaser.Math.Distance.Between(tower.x, tower.y, enemy.x, enemy.y) < tower.range) {
         if (!tower.lastFired || time > tower.lastFired + tower.fireRate) {
           const bullet = this.bullets.create(tower.x, tower.y, 'bullet').setScale(0.5);
           this.physics.moveTo(bullet, enemy.x, enemy.y, 300);
           tower.lastFired = time;
         }
+      }
+      const rangeVis = tower.getData('rangeVis');
+      if (rangeVis) {
+        rangeVis.x = tower.x;
+        rangeVis.y = tower.y;
       }
     });
   }
@@ -165,7 +212,7 @@ const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
-  scene: [HomeScene, TowerDefenseScene, GameOverScene],
+  scene: [HomeScene, TowerDefenseScene, GameOverScene, ShopScene],
   physics: {
     default: 'arcade',
     arcade: { debug: false }
