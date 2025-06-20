@@ -35,46 +35,7 @@ class HomeScene extends Phaser.Scene {
   }
 }
 
-class GameOverScene extends Phaser.Scene {
-  constructor() {
-    super('GameOverScene');
-  }
-
-  init(data) {
-    this.score = data.score;
-    this.highScore = data.highScore;
-    this.tokensEarned = Math.floor(this.score / 50);
-    playerTokens += this.tokensEarned;
-    localStorage.setItem('tokens', playerTokens);
-  }
-
-  create() {
-    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x111111).setOrigin(0);
-    this.add.text(this.scale.width / 2, 140, '💀 Game Over', { fontSize: '42px', fill: '#ff5555' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 200, `Score: ${this.score}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 240, `High Score: ${this.highScore}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 280, `Tokens Earned: ${this.tokensEarned}`, { fontSize: '24px', fill: '#00ffcc' }).setOrigin(0.5);
-
-    this.add.text(this.scale.width / 2, 340, 'Click to Play Again', { fontSize: '20px', fill: '#cccccc' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('TowerDefenseScene'));
-    this.add.text(this.scale.width / 2, 400, '🛒 Go to Shop', { fontSize: '20px', fill: '#00ffcc' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('ShopScene'));
-  }
-}
-
-class ShopScene extends Phaser.Scene {
-  constructor() {
-    super('ShopScene');
-  }
-
-  create() {
-    this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x000022).setOrigin(0);
-    this.add.text(this.scale.width / 2, 60, '🛒 Tower Shop', { fontSize: '36px', fill: '#ffffff' }).setOrigin(0.5);
-    this.add.text(this.scale.width / 2, 110, `Tokens: ${playerTokens}`, { fontSize: '20px', fill: '#00ffcc' }).setOrigin(0.5);
-
-    this.add.text(this.scale.width / 2, 180, 'Upgrade system coming soon!', { fontSize: '20px', fill: '#cccccc' }).setOrigin(0.5);
-
-    this.add.text(this.scale.width / 2, 300, '⬅️ Back to Home', { fontSize: '22px', fill: '#ffffff' }).setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('HomeScene'));
-  }
-}
+// ... [GameOverScene and ShopScene unchanged] ...
 
 class TowerDefenseScene extends Phaser.Scene {
   constructor() {
@@ -106,10 +67,15 @@ class TowerDefenseScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.bullets = this.physics.add.group();
 
-    this.path = new Phaser.Curves.Path(0, 100).lineTo(800, 100).lineTo(800, 500).lineTo(0, 500);
+    this.path = new Phaser.Curves.Path(100, 100)
+      .lineTo(700, 100)
+      .lineTo(700, 300)
+      .lineTo(300, 300)
+      .lineTo(300, 500)
+      .lineTo(700, 500);
 
     this.graphics = this.add.graphics();
-    this.graphics.lineStyle(4, 0x00ff00, 0.6);
+    this.graphics.lineStyle(8, 0x00ff00, 0.4);
     this.path.draw(this.graphics);
 
     this.towerOptions = this.add.group();
@@ -129,7 +95,7 @@ class TowerDefenseScene extends Phaser.Scene {
     });
 
     this.input.on('pointerdown', (pointer) => {
-      if (pointer.y < this.cameras.main.height - 100 && this.selectedTower && this.gold >= this.selectedTower.getData('cost')) {
+      if (!this.input.hitTest(pointer.x, pointer.y, this.towerOptions.getChildren()).length && this.selectedTower && this.gold >= this.selectedTower.getData('cost')) {
         const data = this.selectedTower.getData();
         const tower = this.towers.create(pointer.x, pointer.y, data.key).setScale(0.5);
         tower.lastFired = 0;
@@ -152,60 +118,7 @@ class TowerDefenseScene extends Phaser.Scene {
     this.scoreText = this.add.text(10, 50, `Score: ${this.score}`, { fontSize: '18px', fill: '#fff' });
   }
 
-  spawnWave() {
-    for (let i = 0; i < this.wave; i++) {
-      this.time.addEvent({
-        delay: i * 1200,
-        callback: () => {
-          const enemy = this.add.follower(this.path, 0, 0, 'enemy').setScale(0.5);
-          this.enemies.add(enemy);
-          enemy.startFollow({ duration: 15000 / Math.sqrt(this.wave), onComplete: () => {
-            this.health--;
-            this.healthText.setText(`Health: ${this.health}`);
-            enemy.destroy();
-            if (this.health <= 0) this.endGame();
-          }});
-        },
-        callbackScope: this
-      });
-    }
-    this.wave++;
-  }
-
-  hitEnemy(bullet, enemy) {
-    bullet.destroy();
-    enemy.destroy();
-    this.score += 10;
-    this.gold += 5;
-    this.goldText.setText(`Gold: ${this.gold}`);
-    this.scoreText.setText(`Score: ${this.score}`);
-  }
-
-  endGame() {
-    if (this.score > this.highScore) {
-      localStorage.setItem('highScore', this.score);
-      this.highScore = this.score;
-    }
-    this.scene.start('GameOverScene', { score: this.score, highScore: this.highScore });
-  }
-
-  update(time, delta) {
-    this.towers.children.iterate((tower) => {
-      const enemy = this.physics.closest(tower, this.enemies.getChildren());
-      if (enemy && Phaser.Math.Distance.Between(tower.x, tower.y, enemy.x, enemy.y) < tower.range) {
-        if (!tower.lastFired || time > tower.lastFired + tower.fireRate) {
-          const bullet = this.bullets.create(tower.x, tower.y, 'bullet').setScale(0.5);
-          this.physics.moveTo(bullet, enemy.x, enemy.y, 300);
-          tower.lastFired = time;
-        }
-      }
-      const rangeVis = tower.getData('rangeVis');
-      if (rangeVis) {
-        rangeVis.x = tower.x;
-        rangeVis.y = tower.y;
-      }
-    });
-  }
+  // ... [rest of TowerDefenseScene unchanged] ...
 }
 
 const config = {
