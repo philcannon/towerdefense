@@ -258,7 +258,7 @@ class TowerDefenseScene extends Phaser.Scene {
     // Draw a bright visible curve
     this.pathGraphics.beginPath();
     this.pathGraphics.moveTo(50, h - 150);
-    this.pathGraphics.bezierCurveTo(w / 2, h - 300, w / 2, 100, w - 50, 150);
+    this.pathGraphics.cubicBezierCurveTo(w / 2, h - 300, w / 2, 100, w - 50, 150);
     this.pathGraphics.strokePath();
   }
 
