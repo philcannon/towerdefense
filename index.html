@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Phaser Tower Defense Fixed</title>
+  <title>Phaser Tower Defense - Working Starter</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <style>
     html, body {
@@ -16,7 +16,7 @@
 </head>
 <body>
 <script>
-let playerTokens = parseInt(localStorage.getItem('tokens')) || 0;
+let playerTokens = parseInt(localStorage.getItem('tokens')) || 100;
 
 class HomeScene extends Phaser.Scene {
   constructor() { super('HomeScene'); }
@@ -26,7 +26,7 @@ class HomeScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, w, h, 0x121212).setOrigin(0);
     this.add.text(w / 2, h / 3, '⚔️ Tower Defense', { fontSize: '64px', fill: '#ffd700' }).setOrigin(0.5);
-    this.add.text(w / 2, h / 2, `💰 Tokens: ${playerTokens}`, { fontSize: '28px', fill: '#fff' }).setOrigin(0.5);
+    this.tokensText = this.add.text(w / 2, h / 2, `💰 Tokens: ${playerTokens}`, { fontSize: '28px', fill: '#fff' }).setOrigin(0.5);
 
     const startBtn = this.add.text(w / 2, h / 1.5, '▶️ Start Game', {
       fontSize: '36px', fill: '#0f0', backgroundColor: '#222', padding: { x: 20, y: 10 }
@@ -46,37 +46,26 @@ class TowerDefenseScene extends Phaser.Scene {
     this.currentWave = 1;
   }
 
-  drawPath() {
-    const w = this.sys.game.config.width;
-    const h = this.sys.game.config.height;
-
-    if (this.pathGraphics) this.pathGraphics.clear();
-    else this.pathGraphics = this.add.graphics();
-
-    this.pathGraphics.lineStyle(6, 0xffff00);
-    this.pathGraphics.beginPath();
-
-    // Use quadratic curves since Phaser Graphics does NOT support cubic bezier directly
-    this.pathGraphics.moveTo(50, h - 150);
-    this.pathGraphics.quadraticCurveTo(w / 2, h - 300, w / 2, 100);
-    this.pathGraphics.quadraticCurveTo(w - 50, 100, w - 50, 150);
-
-    this.pathGraphics.strokePath();
-  }
-
   create() {
     const w = this.sys.game.config.width;
     const h = this.sys.game.config.height;
 
     this.cameras.main.setBackgroundColor('#222222');
 
-    this.drawPath();
+    // Draw path
+    this.pathGraphics = this.add.graphics();
+    this.pathGraphics.lineStyle(6, 0xffff00);
+    this.pathGraphics.beginPath();
+    this.pathGraphics.moveTo(50, h - 150);
+    this.pathGraphics.quadraticCurveTo(w / 2, h - 300, w / 2, 100);
+    this.pathGraphics.quadraticCurveTo(w - 50, 100, w - 50, 150);
+    this.pathGraphics.strokePath();
 
-    // Enemy circle moving along path
+    // Enemy setup
     this.enemy = this.add.circle(50, h - 150, 14, 0xff4444);
 
     this.tweenProgress = { t: 0 };
-    this.tweens.add({
+    this.tween = this.tweens.add({
       targets: this.tweenProgress,
       t: 1,
       duration: 10000,
@@ -99,17 +88,19 @@ class TowerDefenseScene extends Phaser.Scene {
     this.tokenText = this.add.text(20, 50, `💰 Tokens: ${this.tokens}`, { fontSize: '24px', fill: '#0ff' });
     this.waveText = this.add.text(w - 150, 20, `Wave: ${this.currentWave}`, { fontSize: '24px', fill: '#fff' });
 
-    // Tower placement - simple blue squares
+    // Towers container
     this.towers = [];
-    this.input.on('pointerdown', pointer => {
-      // Avoid placing towers on HUD area
-      if (pointer.y < 80) return;
 
-      // Deduct tokens and place tower if affordable
-      const cost = 20;
-      if (this.tokens >= cost) {
-        this.tokens -= cost;
+    // Place towers on click below HUD
+    this.input.on('pointerdown', pointer => {
+      if (pointer.y < 80) return; // avoid HUD
+
+      const towerCost = 20;
+      if (this.tokens >= towerCost) {
+        this.tokens -= towerCost;
         this.tokenText.setText(`💰 Tokens: ${this.tokens}`);
+        playerTokens = this.tokens;
+        localStorage.setItem('tokens', playerTokens);
 
         const tower = this.add.rectangle(pointer.x, pointer.y, 40, 40, 0x0055ff).setStrokeStyle(2, 0xffffff);
         this.towers.push(tower);
